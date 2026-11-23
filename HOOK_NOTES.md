@@ -46,8 +46,21 @@ versionCode 907).
 - `SurfaceTransaction$SurfaceProperties.setMatrix`, `setWindowCrop` and
   `setCornerRadius` are hooked to replace their arguments:
   - on the launch's surface they record the place;
-  - on the gesture's surface, for 300 ms from its first frame, the place is
-    blended from the kept one (`WindowPlace.blend`, cubic ease-out).
+  - on the gesture's surface, the window shows the place of a spring
+    (`WindowSpring`). The spring starts at the kept place and chases each
+    place the gesture sets, until it has settled there.
+- vc7's time-based blend moved the window's matrix and crop separately. That
+  bent the path of what shows of it, and it ignored the gesture's own motion.
+- The spring follows how vivo's launcher breaks a launch: OriginOS 6,
+  `BBKLauncher2` from a public iQOO i2401 firmware dump, read with jadx and
+  not copied. `VivoOtherActivityGestureProcessor.breakAppLaunchAnim` takes the
+  launch spring's current rectangle, corner and alpha. It then starts a
+  "break" `RectFSpringAnim` from there whose target is the finger-tracked task
+  bounds (`updateBreakAnimTargetRect`), and the gesture's end animation starts
+  from that spring's rectangle.
+- The springs used are the stiffness and damping that class defaults to:
+  - rectangle and corner: stiffness 200, damping 0.8;
+  - crop: stiffness 400, damping 1.
 
 ## Window animation speed (`WindowAnimationSpeed`)
 

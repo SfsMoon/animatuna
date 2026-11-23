@@ -3,6 +3,7 @@ package io.github.sfsmoon.animatuna.host
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
+import android.content.res.Resources
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.os.Handler
@@ -12,7 +13,7 @@ import android.os.SystemClock
 import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.Hooks
 import io.github.sfsmoon.animatuna.tuning.TuningStore
-import io.github.sfsmoon.animatuna.tuning.WindowPlace
+import io.github.sfsmoon.animatuna.tuning.WindowSpring
 
 /**
  * A gesture started while an app opens takes its window where the launch has
@@ -30,9 +31,10 @@ import io.github.sfsmoon.animatuna.tuning.WindowPlace
  *    runner it is cancelled (`LauncherAnimationRunner.onAnimationCancelled`);
  *    the launch animation itself would go on moving the window, against the
  *    gesture. It is stopped there, and where it left the window is kept.
- * 3. The gesture starts the window from the full screen. For [HANDOVER_MS]
- *    after it takes the window, each place it sets is blended from where the
- *    launch left it ([WindowPlace.blend]).
+ * 3. The gesture starts the window from the full screen. As on vivo's
+ *    launcher, which breaks a launch the same way, the window instead springs
+ *    from where the launch left it toward each place the gesture sets
+ *    ([WindowSpring]), until it has settled on the gesture's.
  */
 internal class CatchOpeningApp(
     private val hooks: Hooks,
@@ -52,12 +54,17 @@ internal class CatchOpeningApp(
     @Volatile private var launchCrop: FloatArray? = null
     @Volatile private var launchRadius: Float? = null
 
-    /** Where the launch left the window when the shell took it, while the gesture has yet to take it. */
-    @Volatile private var caught: WindowPlace? = null
+    /** What showed of the window where the launch left it when the shell took it. */
+    @Volatile private var caught: WindowSpring.Shown? = null
 
-    // The gesture's surface for the caught window, and when it first set a place there.
+    // The gesture's surface for the caught window, the crop and corner it last set there,
+    // and the window springing from the launch's place to the gesture's.
     @Volatile private var gestureSurface: Any? = null
-    @Volatile private var handoverStart = 0L
+    @Volatile private var gestureCrop: FloatArray? = null
+    @Volatile private var gestureRadius: Float? = null
+    private var spring: WindowSpring? = null
+    private var steppedAt = 0L
+    @Volatile private var shown: WindowSpring.Shown? = null
 
     override fun install(lookup: HostLookup) {
         val surfaceOf = lookup.field(LauncherSymbols.surfaceOf)
@@ -109,7 +116,6 @@ internal class CatchOpeningApp(
                 return@after
             }
             gestureSurface = field(app, "leash")
-            handoverStart = 0L
         }
         hooks.replaceArguments(lookup.method(LauncherSymbols.surfaceMatrix)) { properties, args ->
             val surface = properties?.let(surfaceOf::get)
@@ -118,8 +124,8 @@ internal class CatchOpeningApp(
             when {
                 surface != null && surface === launchSurface -> launchMatrix = values
                 surface != null && surface === gestureSurface -> {
-                    val from = caught ?: return@replaceArguments args
-                    return@replaceArguments listOf(Matrix().apply { setValues(WindowPlace.blend(from.matrix, values, share())) })
+                    val shown = follow(values) ?: return@replaceArguments args
+                    return@replaceArguments listOf(Matrix().apply { setValues(shown.matrix()) })
                 }
             }
             args
@@ -131,9 +137,9 @@ internal class CatchOpeningApp(
             when {
                 surface != null && surface === launchSurface -> launchCrop = values
                 surface != null && surface === gestureSurface -> {
-                    val from = caught ?: return@replaceArguments args
-                    val blended = WindowPlace.blend(from.crop, values, share())
-                    return@replaceArguments listOf(Rect(blended[0].toInt(), blended[1].toInt(), blended[2].toInt(), blended[3].toInt()))
+                    gestureCrop = values
+                    val set = shown?.cropToSet() ?: return@replaceArguments args
+                    return@replaceArguments listOf(Rect(set[0].toInt(), set[1].toInt(), set[2].toInt(), set[3].toInt()))
                 }
             }
             args
@@ -144,43 +150,68 @@ internal class CatchOpeningApp(
             when {
                 surface != null && surface === launchSurface -> launchRadius = radius
                 surface != null && surface === gestureSurface -> {
-                    val from = caught ?: return@replaceArguments args
-                    return@replaceArguments listOf(WindowPlace.blend(from.radius, radius, share()))
+                    gestureRadius = radius
+                    val now = shown ?: return@replaceArguments args
+                    return@replaceArguments listOf(now.radius)
                 }
             }
             args
         }
     }
 
+    /**
+     * Springs the caught window one frame toward where the gesture's [matrix]
+     * puts it, and says what shows now; null once the window has settled on
+     * the gesture, or none is caught.
+     */
+    private fun follow(matrix: FloatArray): WindowSpring.Shown? {
+        val from = caught ?: return null
+        val target = WindowSpring.Shown.of(matrix, gestureCrop ?: fullWindow(), gestureRadius ?: from.radius)
+        val now = SystemClock.uptimeMillis()
+        val window = spring ?: WindowSpring(from).also {
+            spring = it
+            steppedAt = now
+        }
+        val seconds = (now - steppedAt).coerceIn(0L, MAX_FRAME_MS) / MS_PER_S
+        steppedAt = now
+        val next = window.step(target, seconds)
+        if (window.settled) {
+            trace.write("  catch: window settled on the gesture")
+            release()
+            return null
+        }
+        shown = next
+        return next
+    }
+
+    private fun fullWindow(): FloatArray {
+        val metrics = Resources.getSystem().displayMetrics
+        return floatArrayOf(0f, 0f, metrics.widthPixels.toFloat(), metrics.heightPixels.toFloat())
+    }
+
+    private fun release() {
+        caught = null
+        gestureSurface = null
+        spring = null
+        shown = null
+        gestureCrop = null
+        gestureRadius = null
+    }
+
     /** Keeps where the launch has the window, and stops the launch, now the shell has handed the window on. */
     private fun catch(running: AnimatorSet) {
-        val place = WindowPlace(launchMatrix, launchCrop, launchRadius)
-        if (place.matrix == null) return
-        caught = place
-        gestureSurface = null
+        val matrix = launchMatrix ?: return
+        release()
+        caught = WindowSpring.Shown.of(matrix, launchCrop ?: fullWindow(), launchRadius ?: 0f)
         trace.write("  catch: shell took the window from the launch, ${running.currentPlayTime} ms in")
         main.post {
             if (launch === running && running.isRunning) running.cancel()
         }
     }
 
-    /** How far the hand-over from the launch's place has gone; once it is done, the gesture's own places stand. */
-    private fun share(): Float {
-        val now = SystemClock.uptimeMillis()
-        if (handoverStart == 0L) handoverStart = now
-        val share = WindowPlace.share(now - handoverStart, HANDOVER_MS)
-        if (share >= 1f) {
-            caught = null
-            gestureSurface = null
-            trace.write("  catch: hand-over done")
-        }
-        return share
-    }
-
     private fun follow(set: AnimatorSet) {
         launch = set
-        caught = null
-        gestureSurface = null
+        release()
         set.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
                 if (launch === set) launch = null
@@ -195,7 +226,8 @@ internal class CatchOpeningApp(
         const val MODE_OPENING = 0
         const val MATRIX_VALUES = 9
 
-        /** How long the gesture's places take to leave the launch's behind. */
-        const val HANDOVER_MS = 300L
+        /** The longest frame a spring steps over, so a pause in the gesture never makes the window leap. */
+        const val MAX_FRAME_MS = 32L
+        const val MS_PER_S = 1000f
     }
 }
