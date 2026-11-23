@@ -51,7 +51,25 @@ object LauncherSymbols {
     /** Starts the animation a runner built. */
     val setAnimation = Member(ANIMATION_RESULT, "setAnimation", "android.animation.AnimatorSet", "android.content.Context", "java.lang.Runnable", "boolean")
 
-    val all: List<Member> = listOf(
+    // What the launcher does around a launch during the gesture home, followed by [DiagnosticTrace].
+    private const val SWIPE_HANDLER = "com.android.quickstep.AbsSwipeUpHandler"
+    private const val RECENTS_CALLBACKS = "com.android.quickstep.RecentsAnimationCallbacks"
+    private const val RECENTS_CONTROLLER = "com.android.quickstep.RecentsAnimationController"
+    private const val TRANSITION_INFO = "android.window.TransitionInfo"
+
+    val traced: List<Member> = listOf(
+        Member(RECENTS_CALLBACKS, "onAnimationStart", "com.android.systemui.shared.system.RecentsAnimationControllerCompat", TARGETS, TARGETS, "android.graphics.Rect", "android.os.Bundle", TRANSITION_INFO),
+        Member(RECENTS_CALLBACKS, "onTasksAppeared", TARGETS, TRANSITION_INFO),
+        Member(RECENTS_CALLBACKS, "onAnimationCanceled", "java.util.HashMap"),
+        Member(SWIPE_HANDLER, "onTasksAppeared", TARGETS, TRANSITION_INFO),
+        Member(SWIPE_HANDLER, "onRecentsAnimationFinished", RECENTS_CONTROLLER),
+        Member("com.android.quickstep.LauncherSwipeHandlerV2", "finishRecentsControllerToHome", "java.lang.Runnable"),
+        Member("com.android.quickstep.window.RecentsSurfaceSwipeHandler", "finishRecentsControllerToHome", "java.lang.Runnable"),
+        Member(RECENTS_CONTROLLER, "finishController", "boolean", "java.lang.Runnable", "boolean", "boolean", GESTURE_LOG_TEXT),
+        Member("com.android.launcher3.LauncherAnimationRunner", "onAnimationCancelled"),
+    )
+
+    val all: List<Member> = traced + listOf(
         startActivitySafely, emptyRunnableList, taskAnimationManager, isRecentsAnimationRunning,
         finishRunningRecentsAnimation, emptyGestureLogText, appLaunchAnimationStart, homeOpenAnimationStart, setAnimation,
     )

@@ -27,6 +27,8 @@ internal class LaunchDuringHomeGesture(
     private val hooks: Hooks,
     private val tuning: TuningStore,
     private val logger: Logger,
+    /** Where each decision is written down, for a diagnostic build. */
+    private val note: (String) -> Unit = {},
 ) : LauncherPatch {
 
     private val managers: MutableSet<Any> = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap()))
@@ -42,15 +44,25 @@ internal class LaunchDuringHomeGesture(
         val emptyResult = lookup.constructor(LauncherSymbols.emptyRunnableList)
         val manager = lookup.constructor(LauncherSymbols.taskAnimationManager)
 
-        hooks.after(manager) { created, _ -> created?.let(managers::add) }
+        hooks.after(manager) { created, _ ->
+            created?.let(managers::add)
+            note("task animation manager created; ${managers.size} known")
+        }
         hooks.around(start) { launcher, args, proceed ->
-            if (relaunching || !tuning.read().launchDuringHomeGesture) return@around proceed()
+            if (relaunching || !tuning.read().launchDuringHomeGesture) {
+                note("tap: ${if (relaunching) "started again" else "feature off"}")
+                return@around proceed()
+            }
             val view = args.firstOrNull() as? View ?: return@around proceed()
-            val flying = synchronized(managers) { managers.firstOrNull { running.invoke(it) == true } }
-                ?: return@around proceed()
+            val states = synchronized(managers) { managers.map { it to (running.invoke(it) == true) } }
+            note("tap: managers running ${states.map { it.second }}")
+            val flying = states.firstOrNull { it.second }?.first ?: return@around proceed()
             val started = AtomicBoolean(false)
             val launch = Runnable {
-                if (started.compareAndSet(false, true)) view.post { relaunch(start, launcher, args) }
+                if (started.compareAndSet(false, true)) {
+                    note("tap held back: recents animation over, starting the app")
+                    view.post { relaunch(start, launcher, args) }
+                }
             }
             finish.invoke(flying, true, true, launch, why.invoke(null))
             // Should the launcher never say the animation ended, the tap still goes through.
