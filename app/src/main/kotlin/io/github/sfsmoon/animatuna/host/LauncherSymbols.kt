@@ -38,6 +38,19 @@ object LauncherSymbols {
     )
     val emptyGestureLogText = Member(GESTURE_LOG_TEXT, "newEmptyString")
 
+    /** The gesture's handler taking the recents animation; it decides there whether to hand the way home to the shell. */
+    val swipeHandlerRecentsStart = Member(
+        "com.android.quickstep.AbsSwipeUpHandler", "onRecentsAnimationStart",
+        "com.android.quickstep.RecentsAnimationController", "com.android.quickstep.RecentsAnimationTargets", "android.window.TransitionInfo",
+    )
+
+    /**
+     * Whether the window's way home after the gesture is handed to the shell
+     * (Android 17's long-lived return animations), which ends the recents
+     * animation as the window starts home rather than once it lands.
+     */
+    val handsOffHome = HostField("com.android.quickstep.AbsSwipeUpHandler", "mHandOffAnimationToHome")
+
     /** Builds the animation an app opens with from its icon. */
     val appLaunchAnimationStart = Member(
         "$TRANSITION_MANAGER\$AppLaunchAnimationRunner", "onAnimationStart", "int", TARGETS, TARGETS, TARGETS, ANIMATION_RESULT,
@@ -65,15 +78,21 @@ object LauncherSymbols {
         Member(SWIPE_HANDLER, "onRecentsAnimationFinished", RECENTS_CONTROLLER),
         Member("com.android.quickstep.LauncherSwipeHandlerV2", "finishRecentsControllerToHome", "java.lang.Runnable"),
         Member("com.android.quickstep.window.RecentsSurfaceSwipeHandler", "finishRecentsControllerToHome", "java.lang.Runnable"),
+        Member(RECENTS_CONTROLLER, "handOffAnimation", TARGETS, "[Landroid.window.WindowAnimationState;"),
         Member(RECENTS_CONTROLLER, "finishController", "boolean", "java.lang.Runnable", "boolean", "boolean", GESTURE_LOG_TEXT),
         Member("com.android.launcher3.LauncherAnimationRunner", "onAnimationCancelled"),
     )
 
-    val all: List<Member> = traced + listOf(
+    val fields: List<HostField> = listOf(handsOffHome)
+
+    val all: List<Member> = traced + listOf(swipeHandlerRecentsStart,
         startActivitySafely, emptyRunnableList, taskAnimationManager, isRecentsAnimationRunning,
         finishRunningRecentsAnimation, emptyGestureLogText, appLaunchAnimationStart, homeOpenAnimationStart, setAnimation,
     )
 }
+
+/** A field of a host class, by its declaring class and name. */
+data class HostField(val className: String, val name: String)
 
 /** A method or constructor of a host class, by its declaring class, name and parameter types, as Java names. */
 data class Member(val className: String, val name: String, val parameters: List<String>) {

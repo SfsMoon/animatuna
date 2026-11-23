@@ -7,7 +7,7 @@ import org.junit.Test
 
 import io.github.sfsmoon.animatuna.host.LauncherSymbols
 
-/** Every launcher member this module reaches is there in each recorded Pixel Launcher build. */
+/** Every launcher member and field this module reaches is there in each recorded Pixel Launcher build. */
 class LauncherSymbolsTest {
 
     @Test
@@ -18,6 +18,8 @@ class LauncherSymbolsTest {
             val members = methodsByClass(fixture)
             val missing = LauncherSymbols.all.filter { members[it.className]?.contains(it.signature) != true }
             assertTrue("${fixture.parentFile.name} lacks ${missing.map { "${it.className}.${it.signature}" }}", missing.isEmpty())
+            val missingFields = LauncherSymbols.fields.filter { members[it.className]?.contains("field ${it.name}") != true }
+            assertTrue("${fixture.parentFile.name} lacks ${missingFields.map { "${it.className}.${it.name}" }}", missingFields.isEmpty())
         }
     }
 
@@ -33,6 +35,7 @@ class LauncherSymbolsTest {
             when {
                 line.startsWith("class ") -> current = members.getOrPut(line.removePrefix("class ").trim()) { mutableSetOf() }
                 line.startsWith("  method ") -> current?.add(line.removePrefix("  method ").trim())
+                line.startsWith("  field ") -> current?.add(line.trim())
             }
         }
         return members

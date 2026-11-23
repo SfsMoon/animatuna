@@ -6,12 +6,17 @@ versionCode 907).
 
 ## Launch during the gesture home (`LaunchDuringHomeGesture`)
 
-- After the gesture home, the recents animation keeps running until the
-  window lands on its icon.
-- An app started in that time is merged into it as a task that appeared
-  mid-gesture (`AbsSwipeUpHandler.onTasksAppeared`). That finishes the
-  animation without animating the app.
+- A device trace (vc2) showed what happens on Pixel Launcher 17. The recents
+  animation ends as the window starts home
+  (`LauncherSwipeHandlerV2.finishRecentsControllerToHome`), because the way
+  home is handed to the shell.
+- A tap while the window still flies home starts an ordinary launch:
+  `AppLaunchAnimationRunner.onAnimationStart` runs and its animation starts
+  unfinished. The app still shows without an animation.
 - Hooked members:
+  - `AbsSwipeUpHandler.onRecentsAnimationStart(RecentsAnimationController, RecentsAnimationTargets, TransitionInfo)`,
+    after: clears `mHandOffAnimationToHome`, so the launcher flies the window
+    home itself and keeps the recents animation running until it lands.
   - `TaskAnimationManager.<init>(Context, int, DisplayController, PerDisplayRepository)`,
     after: remembers each manager (one per display).
   - `QuickstepLauncher.startActivitySafely(View, Intent, ItemInfo)`, around:

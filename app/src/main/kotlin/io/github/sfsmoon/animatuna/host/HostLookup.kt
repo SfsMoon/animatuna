@@ -2,6 +2,7 @@ package io.github.sfsmoon.animatuna.host
 
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
+import java.lang.reflect.Field
 import java.lang.reflect.Method
 
 /** Finds [Member]s among the classes of one host's class loader. */
@@ -16,6 +17,8 @@ class HostLookup(private val classLoader: ClassLoader) {
         require(member.name == Member.CONSTRUCTOR) { "Not a constructor: ${member.signature}" }
         return find(member) as Constructor<*>
     }
+
+    fun field(field: HostField): Field = type(field.className).getDeclaredField(field.name).apply { isAccessible = true }
 
     private fun find(member: Member): Executable {
         val owner = type(member.className)

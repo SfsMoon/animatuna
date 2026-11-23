@@ -15,13 +15,14 @@ import io.github.sfsmoon.animatuna.tuning.TuningStore
  * An app tapped on the home screen while the window just left still flies
  * home opens with its own animation.
  *
- * After the gesture home, Pixel Launcher keeps the recents animation running
- * until the window has landed on its icon. An app started in that time is
- * taken into that animation as a task that appeared during the gesture
- * (`AbsSwipeUpHandler.onTasksAppeared`), which finishes it without animating:
- * the app is just there. So a tap in that time first ends the recents
- * animation home, at once, and starts the app once it has ended, as a launch
- * from the home screen that animates out of its icon.
+ * On Android 17, Pixel Launcher hands the window's way home after the gesture
+ * to the shell (`AbsSwipeUpHandler.mHandOffAnimationToHome`) and ends the
+ * recents animation as the window starts home. An app tapped while the shell
+ * still flies that window home starts a launch the launcher animates, yet it
+ * shows without an animation. So the way home is kept in the launcher, which
+ * then keeps the recents animation running until the window lands; a tap in
+ * that time ends the recents animation home, at once, and starts the app once
+ * it has ended, as a launch from the home screen that animates out of its icon.
  */
 internal class LaunchDuringHomeGesture(
     private val hooks: Hooks,
@@ -43,6 +44,17 @@ internal class LaunchDuringHomeGesture(
         val why = lookup.method(LauncherSymbols.emptyGestureLogText)
         val emptyResult = lookup.constructor(LauncherSymbols.emptyRunnableList)
         val manager = lookup.constructor(LauncherSymbols.taskAnimationManager)
+        val handlerStart = lookup.method(LauncherSymbols.swipeHandlerRecentsStart)
+        val handsOff = lookup.field(LauncherSymbols.handsOffHome)
+
+        // Kept in the launcher, the way home keeps the recents animation running until the window lands,
+        // so a tap in that time is seen, and held back until the window is home.
+        hooks.after(handlerStart) { handler, _ ->
+            if (handler == null || !tuning.read().launchDuringHomeGesture) return@after
+            val handedOff = handsOff.getBoolean(handler)
+            if (handedOff) handsOff.setBoolean(handler, false)
+            note("gesture: way home ${if (handedOff) "taken back from the shell" else "already the launcher's"}")
+        }
 
         hooks.after(manager) { created, _ ->
             created?.let(managers::add)
