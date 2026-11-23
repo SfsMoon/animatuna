@@ -11,11 +11,10 @@ import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.XposedHooks
 import io.github.sfsmoon.animatuna.host.DiagnosticTrace
 import io.github.sfsmoon.animatuna.host.HomeGestureSpring
-import io.github.sfsmoon.animatuna.host.CatchOpeningApp
 import io.github.sfsmoon.animatuna.host.HostLookup
-import io.github.sfsmoon.animatuna.host.LaunchHandoffProbe
 import io.github.sfsmoon.animatuna.host.LauncherPatch
 import io.github.sfsmoon.animatuna.host.LauncherSymbols
+import io.github.sfsmoon.animatuna.host.SpringLaunch
 import io.github.sfsmoon.animatuna.host.WindowAnimationSpeed
 import io.github.sfsmoon.animatuna.tuning.TuningStore
 
@@ -45,8 +44,7 @@ class AnimatunaModule : XposedModule() {
         val trace = TraceFile(File(param.applicationInfo.deviceProtectedDataDir, TRACE_FILE))
         val patches: Map<String, LauncherPatch> = mapOf(
             "diagnostic trace" to DiagnosticTrace(hooks, trace),
-            "launch hand-off probe" to LaunchHandoffProbe(hooks, trace),
-            "catch an opening app" to CatchOpeningApp(hooks, tuning, trace),
+            "spring launch" to SpringLaunch(hooks, tuning, trace),
             "window animation speed" to WindowAnimationSpeed(hooks, tuning),
             "home gesture spring" to HomeGestureSpring(hooks, tuning),
         )

@@ -4,8 +4,8 @@
     <string name="module_description">Tunes Pixel Launcher\'s app open and close animations.</string>
     <string name="waiting_for_framework">Waiting for the Xposed framework. If this stays, enable Animatuna in Vector (or LSPosed) with Pixel Launcher in its scope.</string>
     <string name="framework_gone">The Xposed framework went away; reopen this screen.</string>
-    <string name="catch_opening_app">Catch an opening app with the gesture (experimental)</string>
-    <string name="catch_opening_app_summary">Pixel Launcher jumps an app\'s opening animation to its end the moment you touch the gesture bar. With this on, the animation keeps running and the gesture takes the window where it stands.</string>
+    <string name="spring_launch">Open apps on springs (ColorOS style)</string>
+    <string name="spring_launch_summary">An app grows out of its icon on springs, its size and its shape each at their own pace, as on ColorOS, instead of on Pixel Launcher\'s fixed half-second curve. The opening duration below slows or quickens the springs.</string>
     <string name="open_duration">Opening from an icon</string>
     <string name="close_duration">Closing home with Back</string>
     <string name="home_spring_stiffness">Gesture home: spring stiffness</string>

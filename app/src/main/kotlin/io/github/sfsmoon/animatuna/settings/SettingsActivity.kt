@@ -59,11 +59,11 @@ class SettingsActivity : Activity() {
         column.removeAllViews()
         val tuning = store.read()
         column.addView(Switch(this).apply {
-            text = getString(R.string.catch_opening_app)
-            isChecked = tuning.catchOpeningApp
-            setOnCheckedChangeListener { _, on -> change { it.copy(catchOpeningApp = on) } }
+            text = getString(R.string.spring_launch)
+            isChecked = tuning.springLaunch
+            setOnCheckedChangeListener { _, on -> change { it.copy(springLaunch = on) } }
         })
-        note(getString(R.string.catch_opening_app_summary))
+        note(getString(R.string.spring_launch_summary))
         slider(R.string.open_duration, Tuning.DURATION_PERCENTS, tuning.openDurationPercent, ::percent) { t, v -> t.copy(openDurationPercent = v) }
         slider(R.string.close_duration, Tuning.DURATION_PERCENTS, tuning.closeDurationPercent, ::percent) { t, v -> t.copy(closeDurationPercent = v) }
         slider(R.string.home_spring_stiffness, Tuning.STIFFNESS_PERCENTS, tuning.homeSpringStiffnessPercent, ::percent) { t, v -> t.copy(homeSpringStiffnessPercent = v) }

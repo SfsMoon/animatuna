@@ -25,42 +25,50 @@ versionCode 907).
   - `RecentsAnimationCallbacks.onAnimationStart(...)`, after: the gesture's
     leash for that task.
 
-## Catch an opening app (`CatchOpeningApp`, experimental)
+## Spring launch (`SpringLaunch`)
 
-- `AbsSwipeUpHandler.resetStateForAnimationCancel()` is hooked around. It
-  marks the thread while a gesture's handler, put back by a newer gesture,
-  resets the launcher.
-- `StateManager.cancelAnimation()` is hooked around. It is skipped while that
-  mark is set and an app's launch animation runs, so the launch keeps the
-  window until the new gesture takes it.
-- vc5 measured the cost of the cancel. The gesture's first frame came 70 to
-  90 ms after it, and the window stood full screen in between.
-- vc6 showed what happens once the cancel is skipped. The flash is gone, but
-  the launch animation keeps moving the window toward full screen after the
-  shell hands it to the gesture, and the two alternate frames.
-- `LauncherAnimationRunner.onAnimationCancelled()` is hooked around. While a
-  launch runs, the window's last place on the launch surface is kept and the
-  launch animation is cancelled on the main thread.
-- `RecentsAnimationCallbacks.onAnimationStart(...)` is hooked after. It finds
-  the gesture's leash for the caught task.
-- `SurfaceTransaction$SurfaceProperties.setMatrix`, `setWindowCrop` and
-  `setCornerRadius` are hooked to replace their arguments:
-  - on the launch's surface they record the place;
-  - on the gesture's surface, the window shows the place of a spring
-    (`WindowSpring`). The spring starts at the kept place and chases each
-    place the gesture sets, until it has settled there.
-- vc7's time-based blend moved the window's matrix and crop separately. That
-  bent the path of what shows of it, and it ignored the gesture's own motion.
-- The spring follows how vivo's launcher breaks a launch: OriginOS 6,
-  `BBKLauncher2` from a public iQOO i2401 firmware dump, read with jadx and
-  not copied. `VivoOtherActivityGestureProcessor.breakAppLaunchAnim` takes the
-  launch spring's current rectangle, corner and alpha. It then starts a
-  "break" `RectFSpringAnim` from there whose target is the finger-tracked task
-  bounds (`updateBreakAnimTargetRect`), and the gesture's end animation starts
-  from that spring's rectangle.
-- The springs used are the stiffness and damping that class defaults to:
-  - rectangle and corner: stiffness 200, damping 0.8;
-  - crop: stiffness 400, damping 1.
+Pixel Launcher still runs its own launch: it decides when the launch starts
+and ends, fades the window in, and moves the home screen and the flying icon.
+Only the window's place, each frame, comes from this module's springs.
+
+- `QuickstepTransitionManager$AppLaunchAnimationRunner.onAnimationStart`,
+  around: notes the opening target (`leash`, `screenSpaceBounds`,
+  `rotationChange`, read by name).
+- `LauncherAnimationRunner$AnimationResult.setAnimation`, around: for an app
+  launch, adds a keeper `ValueAnimator` to the set. The keeper holds the
+  launch open until the spring settles, then ends.
+  - The end corner radius comes from
+    `QuickStepContract.getWindowCornerRadius(Context)`.
+  - Rotated launches keep Pixel Launcher's animation.
+- `SurfaceTransaction$SurfaceProperties.setMatrix` / `setWindowCrop` /
+  `setCornerRadius` on the launch leash, with arguments replaced:
+  - The first frame is Pixel Launcher's own, and the spring starts from it
+    (the icon).
+  - Every later frame shows the spring's frame (`RectSpring`, `Motion.LAUNCH`),
+    fitted to the window by `WindowFit`. The window is scaled evenly to cover
+    the visible rectangle, never above 1, and cropped around its centre.
+- Once Pixel Launcher stops setting the window's place (its animator lasts
+  508 ms), the keeper sets it itself through `SurfaceControl.Transaction`.
+  The hidden `setMatrix`, `setWindowCrop` and `setCornerRadius` are reached by
+  name.
+- `FloatingIconView.update(float, RectF, float, float, float, boolean, int)`,
+  arguments replaced: while opening, the icon's bounds and corner follow the
+  spring's frame.
+- The springs are ColorOS 16's (`SpringAnimConstants` in `OplusLauncher` from
+  the public `oplus/ossi` dump, read with jadx, not copied). Each is
+  stiffness / damping:
+
+  | Scene | Position and size | Shape | Corner |
+  |---|---|---|---|
+  | Launch | 420 / 1.04 | 420 / 1.04 | 400 / 1 |
+  | Follow | 400 / 1 | 400 / 1 | 400 / 1 |
+  | Home | 220 / 0.85 | 220 / 0.85 | 400 / 1 |
+
+  As ColorOS does, stiffness is divided by the square of the duration factor:
+  the chosen opening duration times the system animator scale.
+- vc6 to vc8 tried to catch a launch cut short by the gesture by stitching two
+  animators together. That was dropped: the engine is to carry the gesture
+  next, as one retargeted movement.
 
 ## Window animation speed (`WindowAnimationSpeed`)
 

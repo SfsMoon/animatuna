@@ -6,11 +6,10 @@ package io.github.sfsmoon.animatuna.tuning
  */
 data class Tuning(
     /**
-     * A gesture started while an app opens leaves its launch animation
-     * running, rather than jumping it to the end, so the gesture takes the
-     * window where it stands. Experimental.
+     * An app opens from its icon on springs, as on ColorOS, rather than on
+     * Pixel Launcher's fixed half-second curve.
      */
-    val catchOpeningApp: Boolean = true,
+    val springLaunch: Boolean = true,
     /** How long an app takes to open from its icon, in percent of Pixel Launcher's own. */
     val openDurationPercent: Int = STOCK_PERCENT,
     /** How long an app takes to close home outside the gesture (Back), in percent of Pixel Launcher's own. */

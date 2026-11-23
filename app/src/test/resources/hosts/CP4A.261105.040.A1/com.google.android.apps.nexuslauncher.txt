@@ -461,3 +461,51 @@ class com.android.launcher3.statemanager.StateManager
   method setCurrentAnimation(com.android.launcher3.anim.AnimatorPlaybackController,int)
   method toString()
   method updateIsInTransition()
+class com.android.launcher3.views.FloatingIconView
+  field mBadge
+  field mBtvDrawable
+  field mClipIconView
+  field mEndRunnable
+  field mFadeOutView
+  field mFastFinishRunnable
+  field mFinalDrawableBounds
+  field mIconLoadResult
+  field mIsOpening
+  field mIsRtl
+  field mLauncher
+  field mListenerView
+  field mLoadIconSignal
+  field mMatchVisibilityView
+  field mOnTargetChangeRunnable
+  field mOriginalIcon
+  field mPositionOut
+  field sFetchIconId
+  field sIconLoadResult
+  field sRecycledFetchIconId
+  field sTmpRectF
+  method <init>(android.content.Context)
+  method <init>(android.content.Context,android.util.AttributeSet)
+  method dispatchDraw(android.graphics.Canvas)
+  method fastFinish()
+  method fetchIcon(com.android.launcher3.Launcher,android.view.View,com.android.launcher3.model.data.ItemInfo,boolean)
+  method getLocationBoundsForView(com.android.launcher3.Launcher,android.view.View,boolean,android.graphics.RectF,android.graphics.Rect)
+  method onAnimationCancel(android.animation.Animator)
+  method onAnimationEnd(android.animation.Animator)
+  method onAnimationRepeat(android.animation.Animator)
+  method onAnimationStart(android.animation.Animator)
+  method onAttachedToWindow()
+  method onDetachedFromWindow()
+  method onGlobalLayout()
+  method recycle()
+  method setIcon(android.graphics.drawable.Drawable,android.graphics.drawable.Drawable,java.util.function.Supplier,int,boolean)
+  method update(float,android.graphics.RectF,float,float,float,boolean,int)
+  method updatePosition(android.graphics.RectF,com.android.launcher3.InsettableFrameLayout$LayoutParams)
+  method updateViewsVisibility(boolean)
+class com.android.systemui.shared.system.QuickStepContract
+  field SYSUI_PACKAGE
+  method addInterface(android.os.IInterface,android.os.Bundle)
+  method getSystemUiStateString(long)
+  method getWindowCornerRadius(android.content.Context)
+  method isAssistantGestureDisabled(long)
+  method isGesturalMode(int)
+  method supportsRoundedCornersOnWindows(android.content.res.Resources)
