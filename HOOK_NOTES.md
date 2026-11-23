@@ -4,27 +4,26 @@ Every Pixel Launcher member Animatuna touches, checked against
 `app/src/test/resources/hosts/CP4A.261105.040.A1/` (Pixel Launcher 17,
 versionCode 907).
 
-## Launch during the gesture home (`LaunchDuringHomeGesture`)
+## A launch cut short by the gesture (diagnostics)
 
-- A device trace (vc2) showed what happens on Pixel Launcher 17. The recents
-  animation ends as the window starts home
-  (`LauncherSwipeHandlerV2.finishRecentsControllerToHome`), because the way
-  home is handed to the shell.
-- A tap while the window still flies home starts an ordinary launch:
-  `AppLaunchAnimationRunner.onAnimationStart` runs and its animation starts
-  unfinished. The app still shows without an animation.
-- Hooked members:
-  - `AbsSwipeUpHandler.onRecentsAnimationStart(RecentsAnimationController, RecentsAnimationTargets, TransitionInfo)`,
-    after: clears `mHandOffAnimationToHome`, so the launcher flies the window
-    home itself and keeps the recents animation running until it lands.
-  - `TaskAnimationManager.<init>(Context, int, DisplayController, PerDisplayRepository)`,
-    after: remembers each manager (one per display).
-  - `QuickstepLauncher.startActivitySafely(View, Intent, ItemInfo)`, around:
-    while a manager's `isRecentsAnimationRunning()`, calls
-    `finishRunningRecentsAnimation(toHome = true, forceFinish = true, then, ActiveGestureLog.CompoundString.newEmptyString())`.
-    It then starts the app again from `then` on the view's thread, with a
-    400 ms fallback, and returns an empty `RunnableList` for the tap it holds
-    back.
+- Traces vc2 to vc4 showed what happens on Pixel Launcher 17. An app's launch
+  animation runs its full 508 ms unless the gesture bar is touched while it
+  runs.
+- A touch cancels it, so the window jumps to full screen:
+  `AbsSwipeUpHandler.resetStateForAnimationCancel` calls
+  `BaseContainerInterface.onTransitionCancelled`, which calls
+  `StateManager.goToState`, then `StateManager.cancelAnimation`. The launch
+  animation is the state manager's current animation.
+- The gesture then starts from the full-screen window.
+- `LaunchHandoffProbe` records where the window stands at that cut, and where
+  the gesture's first frames put it:
+  - `SurfaceTransaction$SurfaceProperties.setMatrix(Matrix)`,
+    `setWindowCrop(Rect)` and `setCornerRadius(float)`, after: the last values
+    set on each surface (`mSurface`).
+  - `QuickstepTransitionManager$AppLaunchAnimationRunner.onAnimationStart`,
+    around: the opening task and its leash.
+  - `RecentsAnimationCallbacks.onAnimationStart(...)`, after: the gesture's
+    leash for that task.
 
 ## Window animation speed (`WindowAnimationSpeed`)
 

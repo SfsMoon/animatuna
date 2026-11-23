@@ -3,10 +3,6 @@
 A Vector / LSPosed module (libxposed API 102) for Pixel Launcher's app
 animations on Android 17.
 
-- **Apps opened during the gesture home animate.** Pixel Launcher shows an app
-  tapped while the window you left still flies home without its opening
-  animation. Animatuna lands that window at once and opens the app from its
-  icon.
 - **Opening from an icon:** 50% to 200% of Pixel Launcher's duration.
 - **Closing home with Back:** 50% to 200% of Pixel Launcher's duration.
 - **Gesture home spring:** stiffness 50% to 300%, and damping from bouncy (0.40)

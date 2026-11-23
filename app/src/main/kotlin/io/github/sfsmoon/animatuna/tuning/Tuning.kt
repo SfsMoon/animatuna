@@ -5,11 +5,6 @@ package io.github.sfsmoon.animatuna.tuning
  * of Android so its steps can be unit tested; [TuningStore] reads and writes it.
  */
 data class Tuning(
-    /**
-     * An app tapped while the window of the one just left still flies home
-     * opens with its own animation, rather than appearing at once.
-     */
-    val launchDuringHomeGesture: Boolean = true,
     /** How long an app takes to open from its icon, in percent of Pixel Launcher's own. */
     val openDurationPercent: Int = STOCK_PERCENT,
     /** How long an app takes to close home outside the gesture (Back), in percent of Pixel Launcher's own. */

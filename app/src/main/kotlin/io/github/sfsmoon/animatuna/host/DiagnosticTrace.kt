@@ -9,16 +9,16 @@ import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.Hooks
 
 /**
- * Writes down what Pixel Launcher does around a launch during the gesture
- * home: the recents animation starting, tasks appearing in it, how it ends,
- * and the app launch animation's runner, with what [LaunchDuringHomeGesture]
- * decided. A member a build lacks is left out of the trace.
+ * Writes down what Pixel Launcher does around an app's launch and a gesture
+ * that cuts it short: the launch animation, who ends it before its time, and
+ * the recents animation the gesture starts and how it ends. A member a build
+ * lacks is left out of the trace.
  */
 internal class DiagnosticTrace(private val hooks: Hooks, private val trace: TraceFile) : LauncherPatch {
 
     override fun install(lookup: HostLookup) {
         trace.write("trace on")
-        (LauncherSymbols.traced + LauncherSymbols.appLaunchAnimationStart + LauncherSymbols.finishRunningRecentsAnimation).forEach { member ->
+        (LauncherSymbols.traced + LauncherSymbols.appLaunchAnimationStart + LauncherSymbols.recentsAnimationStart).forEach { member ->
             val method = runCatching { lookup.method(member) }.getOrElse {
                 trace.write("missing ${member.className}.${member.signature}")
                 return@forEach
