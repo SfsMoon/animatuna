@@ -17,8 +17,8 @@ import io.github.sfsmoon.animatuna.tuning.WindowFit
 
 /**
  * A gesture started while an app opens takes its window where the launch's
- * springs have it, moving as they move it, and the same springs then follow
- * the finger ([Motion.FOLLOW]): one movement, retargeted, as on ColorOS.
+ * springs have it, moving as they move it, and the same springs then catch up
+ * with the finger ([Motion.CATCH_UP]): one movement, retargeted, as on ColorOS.
  *
  * On Pixel Launcher three things stood in the way, each found in a device trace:
  *
@@ -56,6 +56,7 @@ internal class CatchByGesture(
     @Volatile private var hostScale = 1f
     @Volatile private var fit: WindowFit? = null
     @Volatile private var hostWroteAt = 0L
+    @Volatile private var caughtAt = 0L
     private var framesTraced = 0
     private val choreographer by lazy { Choreographer.getInstance() }
 
@@ -92,7 +93,7 @@ internal class CatchByGesture(
             hostCrop = null
             hostRadius = null
             framesTraced = 0
-            window.use(Motion.FOLLOW)
+            window.use(Motion.CATCH_UP)
             trace.write("  catch: the gesture took task ${window.task}, surface ${surface?.let(System::identityHashCode)}")
             main.post { hold(window) }
         }
@@ -148,10 +149,9 @@ internal class CatchByGesture(
     }
 
     /**
-     * Each frame while a window is caught: where Pixel Launcher sets no place
-     * on the gesture's surface, as between the shell taking the window and the
-     * gesture's first move, the springs set it, so the window never stands at
-     * the full screen the shell would show.
+     * Each frame from the catch until the gesture first sets the window's place:
+     * the springs set it, so the window never stands at the full screen the
+     * shell would show.
      */
     private fun hold(window: MovingWindow) {
         if (caught !== window) return
@@ -159,6 +159,8 @@ internal class CatchByGesture(
             letGo("the gesture's surface is gone")
             return
         }
+        // Once the gesture sets the window's place itself, its frames carry the springs: two writers in a frame tear it.
+        if (hostWroteAt >= caughtAt) return
         if (SystemClock.uptimeMillis() - hostWroteAt > HOST_QUIET_MS) {
             val now = window.step()
             fit = now
@@ -173,6 +175,7 @@ internal class CatchByGesture(
     private val main = Handler(Looper.getMainLooper())
 
     private fun catch(window: MovingWindow) {
+        caughtAt = SystemClock.uptimeMillis()
         caught = window
         surface = null
         fit = null
@@ -205,6 +208,6 @@ internal class CatchByGesture(
         const val TRACED_FRAMES = 8
 
         /** How close, in pixels, the window must be to where the gesture puts it before the gesture's own places stand. */
-        const val CAUGHT_UP_PX = 1.5f
+        const val CAUGHT_UP_PX = 6f
     }
 }

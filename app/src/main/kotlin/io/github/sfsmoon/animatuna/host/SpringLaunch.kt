@@ -178,6 +178,8 @@ internal class SpringLaunch(
         }
         if (window.spring.settled) {
             trace.write("  spring launch settled")
+            // Ending the keeper runs its last frame at once, back into here: let it go first, or it ends again, forever.
+            keeper.removeAllUpdateListeners()
             keeper.end()
         }
     }

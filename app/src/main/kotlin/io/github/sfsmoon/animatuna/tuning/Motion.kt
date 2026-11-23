@@ -24,6 +24,13 @@ enum class Motion(val rect: Spring, val shape: Spring, val corner: Spring) {
     /** A window held by the gesture, following the finger. */
     FOLLOW(Spring(400f, 1f), Spring(400f, 1f), Spring(400f, 1f)),
 
+    /**
+     * A window caught mid-launch catching up with the finger: stiffer than
+     * [FOLLOW], so it reaches the finger in about a tenth of a second and lags
+     * it no longer than that.
+     */
+    CATCH_UP(Spring(1200f, 1f), Spring(1200f, 1f), Spring(800f, 1f)),
+
     /** A window let go toward its icon after the gesture home: slower, a touch of overshoot. */
     HOME(Spring(220f, 0.85f), Spring(220f, 0.85f), Spring(400f, 1f)),
 }

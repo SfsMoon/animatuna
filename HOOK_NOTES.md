@@ -125,6 +125,16 @@ Only the window's place, each frame, comes from this module's springs.
     When a fresh break frame (under 1 s old) names a task in the transition,
     its place is set on that change's leash in the start transaction, so the
     gesture's transition starts with the window there.
+- vc15 fixes three things found on the device:
+  - A crash (`StackOverflowError`, from the user's crash buffer). The keeper's
+    `end()` runs its last update at once, back into `keep()`, which ended it
+    again, forever, whenever the spring settled on a keeper frame. The
+    keeper's listeners are now removed before it ends.
+  - The catch felt late. It followed the finger on `FOLLOW` (400 / 1, about
+    50 ms behind) until within 1.5 px, almost never. It now catches up on
+    `CATCH_UP` (1200 / 1) and lets go within 6 px.
+  - The catch felt torn. The springs' own transactions kept coming beside the
+    launcher's synced ones. They now stop at the gesture's first frame.
 - Known: while a caught window is small, the home screen behind it shows bare
   wallpaper. Starting the gesture puts the launcher in its "behind an app"
   state (`BaseActivityInterface$DefaultAnimationFactory.initBackgroundStateUI`),
