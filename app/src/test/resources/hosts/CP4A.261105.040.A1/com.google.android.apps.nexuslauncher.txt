@@ -560,3 +560,19 @@ class com.android.quickstep.util.RectFSpringAnim
   method onTargetPositionChanged()
   method onUpdate()
   method start(android.content.Context,com.android.launcher3.DeviceProfile,android.graphics.PointF)
+class com.android.quickstep.BaseActivityInterface$DefaultAnimationFactory
+  field mActivity
+  field mCallback
+  field mHasEverAttachedToWindow
+  field mIsAttachedToWindow
+  field mStartState
+  field this$0
+  method <init>(com.android.quickstep.BaseActivityInterface,com.android.launcher3.statemanager.StatefulActivity,java.util.function.Consumer)
+  method createBackgroundToOverviewAnim(com.android.launcher3.statemanager.StatefulActivity,com.android.launcher3.anim.PendingAnimation)
+  method createContainerInterface(long,boolean,boolean)
+  method getContainer()
+  method hasRecentsEverAttachedToAppWindow()
+  method initBackgroundStateUI()
+  method isRecentsAttachedToAppWindow()
+  method onAttachedToWindowStateUpdated(boolean)
+  method setEndTarget(com.android.quickstep.GestureState$GestureEndTarget)

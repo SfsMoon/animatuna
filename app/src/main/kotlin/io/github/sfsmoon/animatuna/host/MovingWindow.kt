@@ -32,8 +32,11 @@ internal class MovingWindow(
             spring.step(seconds)
             steppedAt = time
         }
-        return WindowFit.of(spring.frame(), screen.width().toFloat(), screen.height().toFloat())
+        return fit(spring.frame())
     }
+
+    /** How the window is shown in [frame]. */
+    fun fit(frame: RectSpring.Frame): WindowFit = WindowFit.of(frame, screen.width().toFloat(), screen.height().toFloat())
 
     /** Moves on [motion]'s springs from here, keeping the window's speed. */
     fun use(motion: Motion) = spring.use(motion, durationFactor)

@@ -188,8 +188,8 @@ internal class SpringLaunch(
     @Volatile var context: Context? = null
         private set
 
-    /** Whether an app's launch is moving its window on springs now. */
-    val isLaunching: Boolean get() = launch?.set?.isRunning == true
+    /** Whether an app's launch is moving its window on springs now, one [handOver] would hand on. */
+    val isLaunching: Boolean get() = launch?.let { it.window != null && it.set.isRunning } == true
 
     /**
      * Hands the window of the launch running on to whoever takes it from the

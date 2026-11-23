@@ -9,5 +9,8 @@
 - Fixed: Pixel Launcher could restart when a spring launch settled.
 - After the gesture home, the window flies into its icon on ColorOS's
   springs, carried by the finger's speed.
+- A window caught mid-launch flies home on the same springs and fades into
+  its icon as it arrives, not halfway there. Quick open and close no longer
+  makes the window jump to where an earlier gesture left it.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

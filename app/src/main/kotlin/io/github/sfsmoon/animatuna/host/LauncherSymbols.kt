@@ -54,7 +54,17 @@ object LauncherSymbols {
      * launcher's current animation, an app's launch among them.
      */
     val staleGestureReset = Member("com.android.quickstep.AbsSwipeUpHandler", "resetStateForAnimationCancel")
+
+    /**
+     * A new gesture's handler setting the launcher to its state behind an app
+     * as the finger lands; it too cancels the launcher's current animation on
+     * the way, when the gesture comes before the launch was handed to the shell.
+     */
+    val gestureBackgroundState = Member("com.android.quickstep.BaseActivityInterface\$DefaultAnimationFactory", "initBackgroundStateUI")
     val cancelStateAnimation = Member("com.android.launcher3.statemanager.StateManager", "cancelAnimation")
+
+    /** The shell cancelling the gesture's recents animation, as a tap opening an app does. */
+    val recentsCanceled = Member(RECENTS_CALLBACKS, "onAnimationCanceled", "java.util.HashMap")
 
     /** The gesture's recents animation ending: (to home, then run, send user leave hint, at once, why). */
     val finishRecents = Member(RECENTS_CONTROLLER, "finishController", "boolean", "java.lang.Runnable", "boolean", "boolean", GESTURE_LOG_TEXT)
@@ -71,6 +81,7 @@ object LauncherSymbols {
     val surfaceMatrix = Member(SURFACE, "setMatrix", "android.graphics.Matrix")
     val surfaceCrop = Member(SURFACE, "setWindowCrop", "android.graphics.Rect")
     val surfaceCornerRadius = Member(SURFACE, "setCornerRadius", "float")
+    val surfaceAlpha = Member(SURFACE, "setAlpha", "float")
     val surfaceOf = HostField(SURFACE, "mSurface")
 
     /** The shell taking a launch's windows for a transition that came in on it, a gesture's among them. */
@@ -78,7 +89,7 @@ object LauncherSymbols {
 
     /** What else [DiagnosticTrace] follows: how recents animations and launch animations end. */
     val traced: List<Member> = listOf(
-        Member(RECENTS_CALLBACKS, "onAnimationCanceled", "java.util.HashMap"),
+        recentsCanceled,
         finishRecents,
         launchRunnerCancelled,
     )
@@ -86,7 +97,8 @@ object LauncherSymbols {
     val fields: List<HostField> = listOf(surfaceOf)
 
     val all: List<Member> = traced + listOf(
-        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, cancelStateAnimation, homeSpringStart, homeSpringTarget, surfaceMatrix, surfaceCrop, surfaceCornerRadius,
+        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget,
+        surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha,
     )
 }
 

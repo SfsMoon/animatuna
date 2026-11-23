@@ -159,10 +159,41 @@ Only the window's place, each frame, comes from this module's springs.
     corner becomes the springs' target corner.
   - Every home flight start is traced. If none starts within 120 ms of
     `finishController(true)`, the catch lets go.
-- Known: while a caught window is small, the home screen behind it shows bare
-  wallpaper. Starting the gesture puts the launcher in its "behind an app"
-  state (`BaseActivityInterface$DefaultAnimationFactory.initBackgroundStateUI`),
-  which hides the workspace. To do.
+- vc19 on the device (trace and video, 23 Nov): every caught flight logged
+  `catch: flying home on the same springs`, and the user found it felt like
+  ColorOS. Three things were still wrong:
+  - In the video the window faded out mid-air, halfway to its icon. Pixel
+    Launcher fades the window, and lets its icon take the window's shape, by
+    its own flight's progress (window alpha 1 to 0 by the icon's
+    shape-progress start, about 0.9), and its flight runs ahead of the
+    springs. It also ends the gesture (`finishController(true)`) when its own
+    flight lands, about 250 ms in, before the springs got there.
+  - A catch outlived its gesture. After the window landed, or after the shell
+    cancelled the gesture (`RecentsAnimationCallbacks.onAnimationCanceled`, a
+    tap on an icon), the next gesture on the same task took the old springs,
+    and the window leapt to where they had been (near the icon, or near full
+    size).
+  - Four of twelve launches were cancelled by another path than the stale
+    reset: `DefaultAnimationFactory.initBackgroundStateUI` from the new
+    gesture's `prepareRecentsUI`, before the shell handed the window over.
+    Those launches jumped to their end and were never caught.
+- vc20:
+  - `HomeFlight` draws the window where the springs have it and pulls it in
+    toward the icon over the last 70 % of the launcher's own flight
+    (smoothstep), so it lands as that flight ends. The window's alpha
+    (`SurfaceProperties.setAlpha`, replaced on the caught surface) and the
+    icon's progress (`FloatingIconView.update`'s third argument) follow how
+    far the window itself has come, by its width.
+  - A catch lasts one gesture: it lets go on `onAnimationCanceled`, on
+    `finishController(true)` once flying (the window has landed), and when a
+    second recents start finds it already used.
+  - `initBackgroundStateUI` is wrapped like the stale reset, so its cancel of
+    a spring launch is skipped too. The skip now needs a launch whose spring
+    has started (`SpringLaunch.isLaunching`), so a launch caught before its
+    first frame still ends as before.
+- Not a bug: the bare wallpaper behind a caught window during the gesture is
+  stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
+  for any gesture from an app, until the window is let go home.
 - vc6 to vc8 tried to catch a launch cut short by the gesture by stitching two
   animators together. That was dropped: the engine is to carry the gesture
   next, as one retargeted movement.
