@@ -14,6 +14,7 @@ class TuningStore(private val preferences: SharedPreferences?) {
         val stock = Tuning()
         return runCatching {
             Tuning(
+                catchOpeningApp = prefs.getBoolean(CATCH_OPENING_APP, stock.catchOpeningApp),
                 openDurationPercent = prefs.getInt(OPEN_DURATION, stock.openDurationPercent),
                 closeDurationPercent = prefs.getInt(CLOSE_DURATION, stock.closeDurationPercent),
                 homeSpringStiffnessPercent = prefs.getInt(HOME_SPRING_STIFFNESS, stock.homeSpringStiffnessPercent),
@@ -24,6 +25,7 @@ class TuningStore(private val preferences: SharedPreferences?) {
 
     fun write(tuning: Tuning) {
         preferences?.edit()
+            ?.putBoolean(CATCH_OPENING_APP, tuning.catchOpeningApp)
             ?.putInt(OPEN_DURATION, tuning.openDurationPercent)
             ?.putInt(CLOSE_DURATION, tuning.closeDurationPercent)
             ?.putInt(HOME_SPRING_STIFFNESS, tuning.homeSpringStiffnessPercent)
@@ -36,6 +38,7 @@ class TuningStore(private val preferences: SharedPreferences?) {
         const val GROUP = "tuning"
 
         // Keys. Renaming one silently resets that choice on every device.
+        private const val CATCH_OPENING_APP = "catch_opening_app"
         private const val OPEN_DURATION = "open_duration_percent"
         private const val CLOSE_DURATION = "close_duration_percent"
         private const val HOME_SPRING_STIFFNESS = "home_spring_stiffness_percent"

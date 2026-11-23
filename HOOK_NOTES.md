@@ -25,6 +25,17 @@ versionCode 907).
   - `RecentsAnimationCallbacks.onAnimationStart(...)`, after: the gesture's
     leash for that task.
 
+## Catch an opening app (`CatchOpeningApp`, experimental)
+
+- `AbsSwipeUpHandler.resetStateForAnimationCancel()` is hooked around. It
+  marks the thread while a gesture's handler, put back by a newer gesture,
+  resets the launcher.
+- `StateManager.cancelAnimation()` is hooked around. It is skipped while that
+  mark is set and an app's launch animation runs, so the launch keeps the
+  window until the new gesture takes it.
+- vc5 measured the cost of the cancel. The gesture's first frame came 70 to
+  90 ms after it, and the window stood full screen in between.
+
 ## Window animation speed (`WindowAnimationSpeed`)
 
 - `QuickstepTransitionManager$AppLaunchAnimationRunner.onAnimationStart`

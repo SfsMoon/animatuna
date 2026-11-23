@@ -55,9 +55,17 @@ internal class LaunchHandoffProbe(private val hooks: Hooks, private val trace: T
                 val place = places.getOrPut(surface) { Place() }
                 set(place, args.firstOrNull())
                 place.at = SystemClock.uptimeMillis()
-                if (surface === gestureSurface && member == LauncherSymbols.surfaceMatrix && gestureFramesLeft > 0) {
-                    gestureFramesLeft--
-                    trace.write("  gesture frame +${place.at - cutAt} ms: $place")
+                if (member == LauncherSymbols.surfaceMatrix && gestureFramesLeft > 0) {
+                    // The gesture's frames, and the launch's still coming once the gesture has the window.
+                    val who = when {
+                        surface === gestureSurface -> "gesture"
+                        surface === launchingSurface && gestureSurface != null -> "launch"
+                        else -> null
+                    }
+                    if (who != null) {
+                        gestureFramesLeft--
+                        trace.write("  $who frame +${place.at - cutAt} ms: $place")
+                    }
                 }
             }
         }
@@ -92,6 +100,11 @@ internal class LaunchHandoffProbe(private val hooks: Hooks, private val trace: T
         val surface = launchingSurface
         val task = launchingTask
         set.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationStart(animation: Animator) {
+                gestureSurface = null
+                cutAt = SystemClock.uptimeMillis()
+            }
+
             override fun onAnimationCancel(animation: Animator) {
                 cutAt = SystemClock.uptimeMillis()
                 val place = surface?.let(places::get)
@@ -109,6 +122,6 @@ internal class LaunchHandoffProbe(private val hooks: Hooks, private val trace: T
 
     private companion object {
         const val MODE_OPENING = 0
-        const val GESTURE_FRAMES = 4
+        const val GESTURE_FRAMES = 6
     }
 }

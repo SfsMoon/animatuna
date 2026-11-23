@@ -39,6 +39,14 @@ object LauncherSymbols {
         "com.android.systemui.shared.system.RecentsAnimationControllerCompat", TARGETS, TARGETS, "android.graphics.Rect", "android.os.Bundle", "android.window.TransitionInfo",
     )
 
+    /**
+     * A gesture's handler, put back by a newer gesture's, setting the
+     * launcher back to its resting state; on the way it cancels the launcher's
+     * current animation, an app's launch among them.
+     */
+    val staleGestureReset = Member("com.android.quickstep.AbsSwipeUpHandler", "resetStateForAnimationCancel")
+    val cancelStateAnimation = Member("com.android.launcher3.statemanager.StateManager", "cancelAnimation")
+
     // What the launcher sets on a window's surface each frame, launching or under the gesture.
     val surfaceMatrix = Member(SURFACE, "setMatrix", "android.graphics.Matrix")
     val surfaceCrop = Member(SURFACE, "setWindowCrop", "android.graphics.Rect")
@@ -55,7 +63,7 @@ object LauncherSymbols {
     val fields: List<HostField> = listOf(surfaceOf)
 
     val all: List<Member> = traced + listOf(
-        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, surfaceMatrix, surfaceCrop, surfaceCornerRadius,
+        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, staleGestureReset, cancelStateAnimation, surfaceMatrix, surfaceCrop, surfaceCornerRadius,
     )
 }
 

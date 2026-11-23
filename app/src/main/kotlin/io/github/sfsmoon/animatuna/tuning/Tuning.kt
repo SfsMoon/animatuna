@@ -5,6 +5,12 @@ package io.github.sfsmoon.animatuna.tuning
  * of Android so its steps can be unit tested; [TuningStore] reads and writes it.
  */
 data class Tuning(
+    /**
+     * A gesture started while an app opens leaves its launch animation
+     * running, rather than jumping it to the end, so the gesture takes the
+     * window where it stands. Experimental.
+     */
+    val catchOpeningApp: Boolean = true,
     /** How long an app takes to open from its icon, in percent of Pixel Launcher's own. */
     val openDurationPercent: Int = STOCK_PERCENT,
     /** How long an app takes to close home outside the gesture (Back), in percent of Pixel Launcher's own. */

@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 
 import io.github.libxposed.service.XposedService
@@ -57,6 +58,12 @@ class SettingsActivity : Activity() {
         this.store = store
         column.removeAllViews()
         val tuning = store.read()
+        column.addView(Switch(this).apply {
+            text = getString(R.string.catch_opening_app)
+            isChecked = tuning.catchOpeningApp
+            setOnCheckedChangeListener { _, on -> change { it.copy(catchOpeningApp = on) } }
+        })
+        note(getString(R.string.catch_opening_app_summary))
         slider(R.string.open_duration, Tuning.DURATION_PERCENTS, tuning.openDurationPercent, ::percent) { t, v -> t.copy(openDurationPercent = v) }
         slider(R.string.close_duration, Tuning.DURATION_PERCENTS, tuning.closeDurationPercent, ::percent) { t, v -> t.copy(closeDurationPercent = v) }
         slider(R.string.home_spring_stiffness, Tuning.STIFFNESS_PERCENTS, tuning.homeSpringStiffnessPercent, ::percent) { t, v -> t.copy(homeSpringStiffnessPercent = v) }
