@@ -7,5 +7,7 @@
 - Experimental, off by default: a gesture started while an app opens takes
   the window where the launch has it, on the same springs.
 - Fixed: Pixel Launcher could restart when a spring launch settled.
+- After the gesture home, the window flies into its icon on ColorOS's
+  springs, carried by the finger's speed.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

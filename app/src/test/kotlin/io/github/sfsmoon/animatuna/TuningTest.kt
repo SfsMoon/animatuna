@@ -12,7 +12,7 @@ class TuningTest {
 
     @Test
     fun stockTuningChangesNothing() {
-        val stock = Tuning()
+        val stock = Tuning(springHome = false)
         assertEquals(1f, stock.openDurationFactor)
         assertEquals(1f, stock.closeDurationFactor)
         assertEquals(1f, stock.homeSpringStiffnessFactor)
@@ -37,8 +37,18 @@ class TuningTest {
     }
 
     @Test
+    fun springHomeTakesColorOsSpringsAndTheSlidersStillAdjustThem() {
+        val colorOs = Tuning()
+        assertEquals(220f, SpringResource.STIFFNESS.tune(450f, colorOs), 1e-3f)
+        assertEquals(0.85f, SpringResource.DAMPING.tune(0.965f, colorOs), 1e-6f)
+        val adjusted = Tuning(homeSpringStiffnessPercent = 150, homeSpringDamping = 100)
+        assertEquals(330f, SpringResource.STIFFNESS.tune(450f, adjusted), 1e-3f)
+        assertEquals(1f, SpringResource.DAMPING.tune(0.965f, adjusted), 1e-6f)
+    }
+
+    @Test
     fun chosenSpringReplacesPixelLaunchersOwn() {
-        val tuning = Tuning(homeSpringStiffnessPercent = 200, homeSpringDamping = 60)
+        val tuning = Tuning(springHome = false, homeSpringStiffnessPercent = 200, homeSpringDamping = 60)
         assertEquals(900f, SpringResource.STIFFNESS.tune(450f, tuning))
         assertEquals(0.6f, SpringResource.DAMPING.tune(0.965f, tuning), 1e-6f)
     }

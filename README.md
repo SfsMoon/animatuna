@@ -3,6 +3,9 @@
 A Vector / LSPosed module (libxposed API 102) for Pixel Launcher's app
 animations on Android 17.
 
+- **Flying home on springs:** ColorOS's swipe-home springs (220 / 0.85).
+  Pixel Launcher's own spring stays, so the finger's speed carries into the
+  flight.
 - **Opening from an icon:** 50% to 200% of Pixel Launcher's duration.
 - **Closing home with Back:** 50% to 200% of Pixel Launcher's duration.
 - **Gesture home spring:** stiffness 50% to 300%, and damping from bouncy (0.40)

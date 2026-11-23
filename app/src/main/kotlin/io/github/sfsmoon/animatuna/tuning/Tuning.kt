@@ -15,6 +15,12 @@ data class Tuning(
      * springs have it. Experimental, and off until it works on the device.
      */
     val catchOpeningApp: Boolean = false,
+    /**
+     * A window flies home after the gesture on ColorOS's springs, softer and
+     * with a touch of overshoot, rather than on Pixel Launcher's. The finger's
+     * speed carries into the flight either way.
+     */
+    val springHome: Boolean = true,
     /** How long an app takes to open from its icon, in percent of Pixel Launcher's own. */
     val openDurationPercent: Int = STOCK_PERCENT,
     /** How long an app takes to close home outside the gesture (Back), in percent of Pixel Launcher's own. */

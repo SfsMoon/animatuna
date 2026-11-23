@@ -70,6 +70,12 @@ class SettingsActivity : Activity() {
             setOnCheckedChangeListener { _, on -> change { it.copy(catchOpeningApp = on) } }
         })
         note(getString(R.string.catch_opening_app_summary))
+        column.addView(Switch(this).apply {
+            text = getString(R.string.spring_home)
+            isChecked = tuning.springHome
+            setOnCheckedChangeListener { _, on -> change { it.copy(springHome = on) } }
+        })
+        note(getString(R.string.spring_home_summary))
         slider(R.string.open_duration, Tuning.DURATION_PERCENTS, tuning.openDurationPercent, ::percent) { t, v -> t.copy(openDurationPercent = v) }
         slider(R.string.close_duration, Tuning.DURATION_PERCENTS, tuning.closeDurationPercent, ::percent) { t, v -> t.copy(closeDurationPercent = v) }
         slider(R.string.home_spring_stiffness, Tuning.STIFFNESS_PERCENTS, tuning.homeSpringStiffnessPercent, ::percent) { t, v -> t.copy(homeSpringStiffnessPercent = v) }

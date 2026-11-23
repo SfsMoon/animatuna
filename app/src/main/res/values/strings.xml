@@ -8,6 +8,8 @@
     <string name="spring_launch_summary">An app grows out of its icon on springs, its size and its shape each at their own pace, as on ColorOS, instead of on Pixel Launcher\'s fixed half-second curve. The opening duration below slows or quickens the springs.</string>
     <string name="catch_opening_app">Catch an opening app with the gesture (experimental)</string>
     <string name="catch_opening_app_summary">A swipe home while an app still opens takes the window where it is, instead of jumping it to full screen first. Not working yet: the home screen can blink and the window can land in the wrong place.</string>
+    <string name="spring_home">Fly home on springs (ColorOS style)</string>
+    <string name="spring_home_summary">After the gesture home, the window flies into its icon on ColorOS\'s softer springs, carried by your finger\'s speed, with a touch of bounce as it lands. The gesture home sliders below adjust it from there.</string>
     <string name="open_duration">Opening from an icon</string>
     <string name="close_duration">Closing home with Back</string>
     <string name="home_spring_stiffness">Gesture home: spring stiffness</string>

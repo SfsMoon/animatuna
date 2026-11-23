@@ -2,14 +2,19 @@ package io.github.sfsmoon.animatuna.tuning
 
 /**
  * What a float resource of Pixel Launcher's is to the spring a window flies
- * home on, by its entry name, and how a [Tuning] changes it.
+ * home on, by its entry name, and how a [Tuning] changes it. With
+ * [Tuning.springHome], every part of that spring takes ColorOS's swipe-home
+ * values ([Motion.HOME]) in place of Pixel Launcher's; the sliders then
+ * stiffen it, or replace its damping, from there.
  */
 enum class SpringResource {
     STIFFNESS {
-        override fun tune(value: Float, tuning: Tuning) = value * tuning.homeSpringStiffnessFactor
+        override fun tune(value: Float, tuning: Tuning) =
+            (if (tuning.springHome) Motion.HOME.rect.stiffness else value) * tuning.homeSpringStiffnessFactor
     },
     DAMPING {
-        override fun tune(value: Float, tuning: Tuning) = tuning.homeSpringDampingRatio ?: value
+        override fun tune(value: Float, tuning: Tuning) =
+            tuning.homeSpringDampingRatio ?: if (tuning.springHome) Motion.HOME.rect.damping else value
     },
     OTHER {
         override fun tune(value: Float, tuning: Tuning) = value

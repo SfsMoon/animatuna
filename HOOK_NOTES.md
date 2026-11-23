@@ -170,3 +170,13 @@ Only the window's place, each frame, comes from this module's springs.
   name, once per id.
 - `RectFSpringAnim` and androidx `SpringForce` are not reached: the release
   build renames the latter.
+- With `Tuning.springHome` (vc17, on by default), every
+  `swipe_up_rect_*stiffness*` reads ColorOS's swipe-home stiffness (220) and
+  every `*damping_ratio*` its damping (0.85), in place of Pixel Launcher's
+  (450 / 0.965 for x, 400 / 0.95 for y, 500 / 0.99 for scale). The sliders
+  then adjust these.
+  - Pixel Launcher's own spring keeps flying the window, so the finger's
+    speed (`RectFSpringAnim.start(..., velocityPxPerMs)`) still carries in,
+    and the flying icon and the home screen stay in step with it.
+  - Moving the window on this module's own springs would have needed all
+    three re-synced.

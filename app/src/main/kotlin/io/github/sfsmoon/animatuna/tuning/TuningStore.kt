@@ -16,6 +16,7 @@ class TuningStore(private val preferences: SharedPreferences?) {
             Tuning(
                 springLaunch = prefs.getBoolean(SPRING_LAUNCH, stock.springLaunch),
                 catchOpeningApp = prefs.getBoolean(CATCH_OPENING_APP, stock.catchOpeningApp),
+                springHome = prefs.getBoolean(SPRING_HOME, stock.springHome),
                 openDurationPercent = prefs.getInt(OPEN_DURATION, stock.openDurationPercent),
                 closeDurationPercent = prefs.getInt(CLOSE_DURATION, stock.closeDurationPercent),
                 homeSpringStiffnessPercent = prefs.getInt(HOME_SPRING_STIFFNESS, stock.homeSpringStiffnessPercent),
@@ -28,6 +29,7 @@ class TuningStore(private val preferences: SharedPreferences?) {
         preferences?.edit()
             ?.putBoolean(SPRING_LAUNCH, tuning.springLaunch)
             ?.putBoolean(CATCH_OPENING_APP, tuning.catchOpeningApp)
+            ?.putBoolean(SPRING_HOME, tuning.springHome)
             ?.putInt(OPEN_DURATION, tuning.openDurationPercent)
             ?.putInt(CLOSE_DURATION, tuning.closeDurationPercent)
             ?.putInt(HOME_SPRING_STIFFNESS, tuning.homeSpringStiffnessPercent)
@@ -42,6 +44,7 @@ class TuningStore(private val preferences: SharedPreferences?) {
         // Keys. Renaming one silently resets that choice on every device.
         private const val SPRING_LAUNCH = "spring_launch"
         private const val CATCH_OPENING_APP = "catch_opening_app_v2"
+        private const val SPRING_HOME = "spring_home"
         private const val OPEN_DURATION = "open_duration_percent"
         private const val CLOSE_DURATION = "close_duration_percent"
         private const val HOME_SPRING_STIFFNESS = "home_spring_stiffness_percent"
