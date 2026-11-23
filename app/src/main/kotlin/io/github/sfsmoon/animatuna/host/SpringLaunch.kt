@@ -61,9 +61,13 @@ internal class SpringLaunch(
         var hostWroteAt = 0L
     }
 
+    /** A window that was flying home when its app was opened again: where it showed, on what springs, since when. */
+    private class Return(val task: Int, val shown: RectSpring.Frame, val spring: RectSpring, val at: Long)
+
     private val main = Handler(Looper.getMainLooper())
     private val building = ThreadLocal<Any?>()
     @Volatile private var launch: Launch? = null
+    @Volatile private var returning: Return? = null
 
     private lateinit var cornerRadius: Method
 
@@ -156,15 +160,29 @@ internal class SpringLaunch(
     private fun start(now: Launch, firstRadius: Float) {
         val matrix = now.firstMatrix ?: return
         val crop = now.firstCrop ?: return
-        val from = WindowFit.shown(matrix, crop, firstRadius)
+        // As on ColorOS, an app opened again while its window flies home opens from where the window is, not from its icon.
+        val time = SystemClock.uptimeMillis()
+        val back = returning?.takeIf { it.task == now.task && time - it.at < RETURN_FRESH_MS }
+        returning = null
+        val from = back?.shown ?: WindowFit.shown(matrix, crop, firstRadius)
         if (from.width <= 0f || from.height <= 0f) return
         val to = RectSpring.Frame(now.screen.left.toFloat(), now.screen.top.toFloat(), now.screen.right.toFloat(), now.screen.bottom.toFloat(), now.endRadius)
         val spring = RectSpring(from, Motion.LAUNCH).apply {
             target = to
             use(Motion.LAUNCH, now.durationFactor)
+            if (back != null && time - back.at < KEEP_SPEED_MS) keepSpeedOf(back.spring)
         }
         now.window = MovingWindow(now.task, now.screen, now.durationFactor, spring)
-        trace.write("  spring launch from ${from.width.toInt()}x${from.height.toInt()} at (${from.left.toInt()}, ${from.top.toInt()})")
+        val whence = if (back == null) "" else " (back from its flight home, ${time - back.at} ms after)"
+        trace.write("  spring launch from ${from.width.toInt()}x${from.height.toInt()} at (${from.left.toInt()}, ${from.top.toInt()})$whence")
+    }
+
+    /**
+     * The window of [task] stops flying home, [shown] where it is, on [spring]:
+     * should its app open again soon, its launch starts there.
+     */
+    fun returnFrom(task: Int, shown: RectSpring.Frame, spring: RectSpring) {
+        returning = Return(task, shown, spring, SystemClock.uptimeMillis())
     }
 
     /** Each frame of the launch: sets the window's place where Pixel Launcher no longer does, and lets the launch end once settled. */
@@ -217,6 +235,12 @@ internal class SpringLaunch(
 
         /** How long Pixel Launcher must have set nothing before the window's place is set here. */
         const val HOST_QUIET_MS = 24L
+
+        /** How long after a flight home stops its app's launch starts from the window; the shell takes about 300 ms. */
+        const val RETURN_FRESH_MS = 1000L
+
+        /** How long after it stops the launch still carries the flight's speed. */
+        const val KEEP_SPEED_MS = 100L
 
     }
 }

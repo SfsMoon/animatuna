@@ -81,6 +81,21 @@ class RectSpring(start: Frame, private var motion: Motion) {
         return frame()
     }
 
+    /** Sets how fast the window's horizontal centre and top edge move, in pixels a second, as a finger flings it. */
+    fun fling(centerXVelocity: Float, topVelocity: Float) {
+        centerX.velocity = centerXVelocity
+        top.velocity = topVelocity
+    }
+
+    /** Moves on, part by part, as fast as [other] moves: the next scene inheriting the last one's speed. */
+    fun keepSpeedOf(other: RectSpring) {
+        centerX.velocity = other.centerX.velocity
+        top.velocity = other.top.velocity
+        width.velocity = other.width.velocity
+        shape.velocity = other.shape.velocity
+        radius.velocity = other.radius.velocity
+    }
+
     /** How fast the window's horizontal centre moves, in pixels a second. */
     val centerXVelocity: Float get() = centerX.velocity
 

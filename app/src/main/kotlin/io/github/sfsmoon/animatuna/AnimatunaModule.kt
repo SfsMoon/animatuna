@@ -66,7 +66,7 @@ class AnimatunaModule : XposedModule() {
         return mapOf(
             "diagnostic trace" to DiagnosticTrace(hooks, trace),
             "spring launch" to launch,
-            "catch an opening app by the gesture" to CatchByGesture(hooks, tuning, launch, trace),
+            "the gesture: catching an opening app, flying home on springs" to CatchByGesture(hooks, tuning, launch, trace),
             "window animation speed" to WindowAnimationSpeed(hooks, tuning),
             "home gesture spring" to HomeGestureSpring(hooks, tuning),
         )

@@ -6,6 +6,8 @@ import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.animation.ValueAnimator
+import android.content.Context
 import android.provider.Settings
 import android.view.Choreographer
 
@@ -47,6 +49,11 @@ import io.github.sfsmoon.animatuna.tuning.WindowFit
  * flight ends ([HomeFlight]). A catch lasts one gesture: where the gesture
  * gives the window back to the app, is cancelled, or the window has landed,
  * the springs let it go.
+ *
+ * Every other gesture home flies on the same engine too (`Tuning.springHome`):
+ * the springs take the window where Pixel Launcher's own flight starts it, at
+ * the finger's speed. Should its app be opened again before the window lands,
+ * the launch starts where the window is ([SpringLaunch.returnFrom]).
  */
 internal class CatchByGesture(
     private val hooks: Hooks,
@@ -77,12 +84,19 @@ internal class CatchByGesture(
     @Volatile private var hostProgress = 0f
     @Volatile private var shapeFrom = DEFAULT_SHAPE_FROM
     @Volatile private var flown = 0f
+    @Volatile private var hostFlight: Any? = null
+    @Volatile private var shown: RectSpring.Frame? = null
+
+    /** The app window the gesture moves, whether caught or not: its task, its surface, its full-size bounds. */
+    private class GestureApp(val task: Int, val surface: Any, val screen: Rect)
+    @Volatile private var gestureApp: GestureApp? = null
     @Volatile private var caughtAt = 0L
     private var framesTraced = 0
     private val choreographer by lazy { Choreographer.getInstance() }
 
     override fun install(lookup: HostLookup) {
         val surfaceOf = lookup.field(LauncherSymbols.surfaceOf)
+        val progressOf = lookup.field(LauncherSymbols.homeSpringProgress)
         listOf(LauncherSymbols.staleGestureReset, LauncherSymbols.gestureBackgroundState).forEach { member ->
             hooks.around(lookup.method(member)) { _, _, proceed ->
                 resetting.set(true)
@@ -106,6 +120,12 @@ internal class CatchByGesture(
             proceed()
         }
         hooks.after(lookup.method(LauncherSymbols.recentsAnimationStart)) { _, args ->
+            gestureApp = (args.getOrNull(1) as? Array<*>)?.firstOrNull { field(it, "mode") == MODE_CLOSING }?.let { app ->
+                val task = field(app, "taskId") as? Int
+                val leash = field(app, "leash")
+                val screen = field(app, "screenSpaceBounds") as? Rect
+                if (task == null || leash == null || screen == null || screen.isEmpty) null else GestureApp(task, leash, Rect(screen))
+            }
             val window = caught ?: return@after
             if (surface != null) {
                 letGo("an earlier gesture had it")
@@ -125,7 +145,10 @@ internal class CatchByGesture(
             main.post { hold(window) }
         }
         hooks.after(lookup.method(LauncherSymbols.recentsCanceled)) { _, _ ->
-            if (caught != null) letGo("the gesture was cancelled")
+            val window = caught ?: return@after
+            // Cancelled mid-flight, as a tap opening the app again does: its launch starts where the window is.
+            if (flying) launch.returnFrom(window.task, shown ?: window.spring.frame(), window.spring)
+            letGo("the gesture was cancelled${if (flying) ", ${(flown * PERCENT).toInt()}% of the way home" else ""}")
         }
         hooks.after(lookup.method(LauncherSymbols.finishRecents)) { _, args ->
             // Back to the app, the shell shows it whole again. Home, the launcher ends the gesture once its flight has landed.
@@ -140,9 +163,42 @@ internal class CatchByGesture(
             }
         }
         val targetOf = lookup.method(LauncherSymbols.homeSpringTarget)
-        hooks.around(lookup.method(LauncherSymbols.homeSpringStart)) { spring, _, proceed ->
+        val startOf = lookup.field(LauncherSymbols.homeSpringStartRect)
+        val cornerRadius = lookup.method(LauncherSymbols.windowCornerRadius)
+        hooks.around(lookup.method(LauncherSymbols.homeSpringStart)) { spring, args, proceed ->
             val window = caught
-            if (window != null && surface != null && spring != null) {
+            hostFlight = spring
+            if (window == null && spring != null && tuning.read().springHome) {
+                // Not caught: the springs take the window where Pixel Launcher's flight starts it, at the finger's speed.
+                val app = gestureApp
+                val start = startOf.get(spring) as? RectF
+                val icon = targetOf.invoke(spring) as? RectF
+                val corner = runCatching { cornerRadius.invoke(null, args.getOrNull(0) as? Context) as Float }.getOrNull()
+                val speed = args.getOrNull(2) as? android.graphics.PointF
+                if (app != null && start != null && icon != null && corner != null && !start.isEmpty && !icon.isEmpty) {
+                    val shownRadius = corner * start.width() / app.screen.width()
+                    val from = RectSpring.Frame(start.left, start.top, start.right, start.bottom, shownRadius)
+                    val springs = RectSpring(from, Motion.HOME).apply {
+                        target = RectSpring.Frame(icon.left, icon.top, icon.right, icon.bottom, shownRadius * icon.width() / start.width())
+                        fling((speed?.x ?: 0f) * MS_PER_S, (speed?.y ?: 0f) * MS_PER_S)
+                    }
+                    val scale = ValueAnimator.getDurationScale().takeIf { it > 0f } ?: 1f
+                    val flier = MovingWindow(app.task, app.screen, scale, springs).also { it.use(Motion.HOME) }
+                    caught = flier
+                    surface = app.surface
+                    fit = null
+                    hostCrop = null
+                    hostRadius = null
+                    hostProgress = 0f
+                    flown = 0f
+                    shown = from
+                    flight = HomeFlight(from)
+                    framesTraced = TRACED_FRAMES
+                    trace.write("  home flight on the springs, task ${app.task}, from ${start.toShortString()} to ${icon.toShortString()}")
+                } else {
+                    trace.write("  home flight starts, left to the launcher")
+                }
+            } else if (window != null && surface != null && spring != null) {
                 // As on ColorOS, the same springs fly the window home: from where they have it, as fast as it moves,
                 // to the icon Pixel Launcher's own flight is headed for. Its frames are no longer read, only its aim.
                 (targetOf.invoke(spring) as? RectF)?.let { icon ->
@@ -151,26 +207,24 @@ internal class CatchByGesture(
                     window.use(Motion.HOME)
                     hostProgress = 0f
                     flown = 0f
+                    shown = now
                     flight = HomeFlight(now)
                     framesTraced = TRACED_FRAMES
                     trace.write("  catch: flying home on the same springs, to ${icon.toShortString()}")
                 }
             } else {
-                trace.write("  home flight starts, nothing caught")
+                trace.write("  home flight starts, left to the launcher")
             }
             proceed()
         }
         hooks.replaceArguments(lookup.method(LauncherSymbols.floatingIconUpdate)) { _, args ->
             // The icon the window lands as follows the window, takes its shape as far as the window has come,
-            // and its corner is where the window's heads. How far the launcher's own flight has come is kept.
+            // and its corner is where the window's heads.
             val window = caught ?: return@replaceArguments args
-            val home = flight ?: return@replaceArguments args
-            if (args.getOrNull(5) != false) return@replaceArguments args
-            (args.getOrNull(2) as? Float)?.let { hostProgress = it }
+            if (flight == null || args.getOrNull(5) != false) return@replaceArguments args
             (args.getOrNull(3) as? Float)?.let { shapeFrom = it }
             (args.getOrNull(4) as? Float)?.let { radius -> window.spring.target = window.spring.target.copy(radius = radius) }
-            val now = home.shown(window.spring.frame(), window.spring.target, hostProgress)
-            flown = home.progress(now, window.spring.target)
+            val now = shown ?: return@replaceArguments args
             args.toMutableList().apply {
                 this[1] = RectF(now.left, now.top, now.right, now.bottom)
                 this[2] = flown
@@ -200,9 +254,11 @@ internal class CatchByGesture(
             }
             val stepped = window.step()
             val now = flight?.let { home ->
-                val shown = home.shown(window.spring.frame(), window.spring.target, hostProgress)
-                flown = home.progress(shown, window.spring.target)
-                window.fit(shown)
+                hostFlight?.let { hostProgress = runCatching { progressOf.getFloat(it) }.getOrDefault(hostProgress) }
+                val drawn = home.shown(window.spring.frame(), window.spring.target, hostProgress)
+                flown = home.progress(drawn, window.spring.target)
+                shown = drawn
+                window.fit(drawn)
             } ?: stepped
             if (!flying && window.spring.near(CAUGHT_UP_PX)) {
                 letGo("the window caught up with the gesture")
@@ -277,6 +333,8 @@ internal class CatchByGesture(
     private fun letGo(why: String) {
         caught = null
         flight = null
+        shown = null
+        hostFlight = null
         surface = null
         fit = null
         hostCrop = null
@@ -290,6 +348,10 @@ internal class CatchByGesture(
     private companion object {
         const val MATRIX_VALUES = 9
         const val PERCENT = 100
+        const val MS_PER_S = 1000f
+
+        /** A recents animation target's mode for the app the gesture moves away from. */
+        const val MODE_CLOSING = 1
 
         /** Where Pixel Launcher's icon starts taking a window's shape on its flight home, until it says. */
         const val DEFAULT_SHAPE_FROM = 0.9f
