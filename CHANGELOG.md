@@ -12,5 +12,9 @@
 - A window caught mid-launch flies home on the same springs and fades into
   its icon as it arrives, not halfway there. Quick open and close no longer
   makes the window jump to where an earlier gesture left it.
+- Every gesture home flies on ColorOS's springs, from the window's own
+  place and the finger's speed, not only a window caught mid-launch.
+- An app opened again while its window flies home opens from where the
+  window is, not from its icon.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

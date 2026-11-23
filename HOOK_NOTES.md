@@ -191,6 +191,26 @@ Only the window's place, each frame, comes from this module's springs.
     a spring launch is skipped too. The skip now needs a launch whose spring
     has started (`SpringLaunch.isLaunching`), so a launch caught before its
     first frame still ends as before.
+- vc21, two things ColorOS does that Pixel Launcher did not:
+  - Every gesture home flies on the springs, not only a caught window
+    (`Tuning.springHome`). Around `RectFSpringAnim.start`, with nothing caught,
+    the springs start at the flight's `mStartRect` (the window's visible
+    rectangle as the finger lets go) with the finger's speed (`start`'s
+    `PointF`, pixels a millisecond), aim at `getTargetRect()`, and take the
+    gesture's app window (`RecentsAnimationCallbacks.onAnimationStart`'s app
+    target in mode 1) through the same `HomeFlight` as a caught one. The
+    window's corner at the start is the device's window corner
+    (`QuickStepContract.getWindowCornerRadius`) scaled to that rectangle.
+  - The launcher's own flight's progress is now read from its spring
+    (`RectFSpringAnim.mCurrentScaleProgress`, what it passes its listeners),
+    not from the icon, so a flight with no icon lands too.
+  - Opening an app again while its window flies home: the shell cancels the
+    gesture (`onAnimationCanceled`) and starts the launch about 300 ms later
+    (vc19 trace). The window's last shown place and its springs are handed to
+    `SpringLaunch.returnFrom`; a launch of the same task within 1 s starts
+    there instead of at the icon, keeping the flight's speed if within 100 ms,
+    as ColorOS's `copyNextAnimState` and `inheritVelocity` do.
+  - Not known yet: what the screen shows in those 300 ms.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.
