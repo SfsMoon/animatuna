@@ -1,5 +1,10 @@
 package io.github.sfsmoon.animatuna.host
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.os.SystemClock
+
 import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.Hooks
 
@@ -26,10 +31,40 @@ internal class DiagnosticTrace(private val hooks: Hooks, private val trace: Trac
         val setAnimation = lookup.method(LauncherSymbols.setAnimation)
         val finished = runCatching { setAnimation.declaringClass.getDeclaredField("mFinished").apply { isAccessible = true } }.getOrNull()
         hooks.around(setAnimation) { result, args, proceed ->
-            trace.write("> setAnimation(${describe(args.firstOrNull())}) alreadyFinished=${runCatching { finished?.get(result) }.getOrNull()}")
+            val set = args.firstOrNull() as? AnimatorSet
+            trace.write("> setAnimation(${describe(set)}, ${set?.totalDuration} ms) alreadyFinished=${runCatching { finished?.get(result) }.getOrNull()}")
+            set?.let(::follow)
             proceed()
         }
     }
+
+    /** Writes down how [set] runs, and who ends or cancels it before its time. */
+    private fun follow(set: AnimatorSet) {
+        var startedAt = 0L
+        set.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationStart(animation: Animator) {
+                startedAt = SystemClock.uptimeMillis()
+                trace.write("  animation started")
+            }
+
+            override fun onAnimationCancel(animation: Animator) {
+                trace.write("  animation cancelled after ${SystemClock.uptimeMillis() - startedAt} ms by ${caller()}")
+            }
+
+            override fun onAnimationEnd(animation: Animator) {
+                val ran = SystemClock.uptimeMillis() - startedAt
+                val early = ran + EARLY_SLACK_MS < set.totalDuration
+                trace.write("  animation ended after $ran ms${if (early) " (early) by ${caller()}" else ""}")
+            }
+        })
+    }
+
+    /** The launcher frames that led here, the innermost first, past the animation framework's own. */
+    private fun caller(): String = Throwable().stackTrace
+        .filter { frame -> FRAMEWORK.none { frame.className.startsWith(it) } }
+        .map { "${it.className.substringAfterLast('.')}.${it.methodName}" }
+        .take(CALLER_FRAMES)
+        .joinToString(" < ")
 
     private fun describe(value: Any?): String = when (value) {
         null -> "null"
@@ -39,6 +74,13 @@ internal class DiagnosticTrace(private val hooks: Hooks, private val trace: Trac
         }
         is Boolean, is Number -> value.toString()
         else -> value.javaClass.simpleName
+    }
+
+    private companion object {
+        const val EARLY_SLACK_MS = 50L
+        const val CALLER_FRAMES = 8
+        /** Packages of the animation framework, reflection, hooking and this module, left out of a caller. */
+        val FRAMEWORK = listOf("android.animation.", "java.lang.reflect.", "io.github.sfsmoon.", "io.github.libxposed.", "org.matrix.", "org.lsposed.", "de.robv.")
     }
 
     private fun field(target: Any, name: String): Any? = runCatching { target.javaClass.getField(name).get(target) }.getOrNull()
