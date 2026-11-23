@@ -135,6 +135,15 @@ Only the window's place, each frame, comes from this module's springs.
     `CATCH_UP` (1200 / 1) and lets go within 6 px.
   - The catch felt torn. The springs' own transactions kept coming beside the
     launcher's synced ones. They now stop at the gesture's first frame.
+- vc15's traces showed SystemUI placing the break frame 5 to 20 ms after the
+  hand-over, as meant. Two things were wrong:
+  - Nearly every frame was placed twice. The second time came 400 to 900 ms
+    later, on the next gesture's transition, against a window already whole
+    again. The frame is now one-shot (SystemUI clears it) and fresh for 200 ms.
+  - The launcher let go of the window when the finger lifted
+    (`finishController(true)`), before the springs had caught up, so the
+    window leapt to the launcher's place. It now goes on catching up through
+    the flight home. It lets go when near, or back in the app.
 - Known: while a caught window is small, the home screen behind it shows bare
   wallpaper. Starting the gesture puts the launcher in its "behind an app"
   state (`BaseActivityInterface$DefaultAnimationFactory.initBackgroundStateUI`),

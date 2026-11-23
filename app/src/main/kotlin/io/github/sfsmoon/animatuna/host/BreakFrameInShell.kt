@@ -40,6 +40,8 @@ internal class BreakFrameInShell(private val hooks: Hooks, private val trace: Tr
         } ?: return trace.write("break frame for task ${frame.task}: not in the gesture's transition")
         val leash = change.javaClass.getMethod("getLeash").invoke(change) as? SurfaceControl ?: return
         val placed = SurfacePlacer.put(start, leash, frame.fit)
+        // One hand-over, one transition: a later gesture finds the window whole again.
+        runCatching { Settings.Global.putString(resolver, BreakFrame.KEY, null) }
         trace.write("break frame: task ${frame.task} starts at scale ${frame.fit.scale}, ${SystemClock.uptimeMillis() - frame.at} ms after the hand-over, placed=$placed")
     }
 

@@ -28,8 +28,8 @@ data class BreakFrame(
         private const val SEPARATOR = ";"
         private const val FIELDS = 10
 
-        /** How long after the hand-over the shell's gesture transition may still start from it. */
-        const val FRESH_MS = 1000L
+        /** How long after the hand-over the shell's gesture transition may still start from it: it starts within tens of milliseconds. */
+        const val FRESH_MS = 200L
 
         fun decode(text: String?): BreakFrame? {
             val parts = text?.split(SEPARATOR)?.takeIf { it.size == FIELDS } ?: return null

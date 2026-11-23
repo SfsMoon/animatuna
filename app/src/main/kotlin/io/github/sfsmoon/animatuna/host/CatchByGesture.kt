@@ -98,8 +98,9 @@ internal class CatchByGesture(
             main.post { hold(window) }
         }
         hooks.after(lookup.method(LauncherSymbols.finishRecents)) { _, args ->
-            // The gesture's recents animation is over: the shell has the window again.
-            if (caught != null) letGo(if (args.firstOrNull() == false) "the gesture gave the window back to the app" else "the gesture took the window home")
+            // Back to the app, the shell shows it whole again. Home, the launcher still flies the window
+            // to its icon on the same surface: the springs go on catching up with it there.
+            if (caught != null && args.firstOrNull() == false) letGo("the gesture gave the window back to the app")
         }
         hooks.replaceArguments(lookup.method(LauncherSymbols.surfaceMatrix)) { properties, args ->
             val window = caught ?: return@replaceArguments args

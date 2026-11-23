@@ -25,8 +25,9 @@ class BreakFrameTest {
     @Test
     fun onlyAFreshFrameStandsAndGarbageIsNone() {
         val frame = BreakFrame(1, 1000L, WindowFit(1f, 0f, 0f, floatArrayOf(0f, 0f, 1f, 1f), 0f))
-        assertTrue(frame.freshAt(1500L))
-        assertFalse(frame.freshAt(5000L))
+        assertTrue(frame.freshAt(1150L))
+        // A gesture half a second on is another gesture, its window whole again.
+        assertFalse(frame.freshAt(1500L))
         assertFalse(frame.freshAt(900L))
         assertNull(BreakFrame.decode(null))
         assertNull(BreakFrame.decode("not;a;frame"))
