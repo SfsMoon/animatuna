@@ -53,11 +53,14 @@ object LauncherSymbols {
     val surfaceCornerRadius = Member(SURFACE, "setCornerRadius", "float")
     val surfaceOf = HostField(SURFACE, "mSurface")
 
+    /** The shell taking a launch's windows for a transition that came in on it, a gesture's among them. */
+    val launchRunnerCancelled = Member("com.android.launcher3.LauncherAnimationRunner", "onAnimationCancelled")
+
     /** What else [DiagnosticTrace] follows: how recents animations and launch animations end. */
     val traced: List<Member> = listOf(
         Member(RECENTS_CALLBACKS, "onAnimationCanceled", "java.util.HashMap"),
         Member(RECENTS_CONTROLLER, "finishController", "boolean", "java.lang.Runnable", "boolean", "boolean", GESTURE_LOG_TEXT),
-        Member("com.android.launcher3.LauncherAnimationRunner", "onAnimationCancelled"),
+        launchRunnerCancelled,
     )
 
     val fields: List<HostField> = listOf(surfaceOf)

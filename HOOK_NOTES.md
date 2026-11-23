@@ -35,6 +35,19 @@ versionCode 907).
   window until the new gesture takes it.
 - vc5 measured the cost of the cancel. The gesture's first frame came 70 to
   90 ms after it, and the window stood full screen in between.
+- vc6 showed what happens once the cancel is skipped. The flash is gone, but
+  the launch animation keeps moving the window toward full screen after the
+  shell hands it to the gesture, and the two alternate frames.
+- `LauncherAnimationRunner.onAnimationCancelled()` is hooked around. While a
+  launch runs, the window's last place on the launch surface is kept and the
+  launch animation is cancelled on the main thread.
+- `RecentsAnimationCallbacks.onAnimationStart(...)` is hooked after. It finds
+  the gesture's leash for the caught task.
+- `SurfaceTransaction$SurfaceProperties.setMatrix`, `setWindowCrop` and
+  `setCornerRadius` are hooked to replace their arguments:
+  - on the launch's surface they record the place;
+  - on the gesture's surface, for 300 ms from its first frame, the place is
+    blended from the kept one (`WindowPlace.blend`, cubic ease-out).
 
 ## Window animation speed (`WindowAnimationSpeed`)
 

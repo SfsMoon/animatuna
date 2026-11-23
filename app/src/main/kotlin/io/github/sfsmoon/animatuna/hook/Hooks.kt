@@ -17,6 +17,9 @@ interface Hooks {
     /** Lets every call to [method] run, then runs [after] with the object and arguments. */
     fun after(method: Executable, after: (thisObject: Any?, args: List<Any?>) -> Unit)
 
+    /** Runs every call to [method] with the arguments [transform] makes of the caller's. */
+    fun replaceArguments(method: Executable, transform: (thisObject: Any?, args: List<Any?>) -> List<Any?>)
+
     /** Lets every call to [method] run, then returns what [transform] makes of its result. */
     fun replaceResult(method: Executable, transform: (thisObject: Any?, args: List<Any?>, result: Any?) -> Any?)
 
@@ -36,6 +39,16 @@ class XposedHooks(private val xposed: XposedInterface, private val logger: Logge
             val result = chain.proceed()
             runCatching { after(chain.thisObject, chain.args) }.onFailure { failed(method, it) }
             result
+        }
+        hooked(method)
+    }
+
+    override fun replaceArguments(method: Executable, transform: (thisObject: Any?, args: List<Any?>) -> List<Any?>) {
+        xposed.hook(method).intercept { chain ->
+            val args = runCatching { transform(chain.thisObject, chain.args) }
+                .onFailure { failed(method, it) }
+                .getOrDefault(chain.args)
+            chain.proceed(args.toTypedArray())
         }
         hooked(method)
     }
