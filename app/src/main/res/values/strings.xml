@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Animatuna</string>
+    <string name="module_description">Tunes Pixel Launcher\'s app open and close animations, and keeps an app tapped during the gesture home from appearing without one.</string>
+    <string name="waiting_for_framework">Waiting for the Xposed framework. If this stays, enable Animatuna in Vector (or LSPosed) with Pixel Launcher in its scope.</string>
+    <string name="framework_gone">The Xposed framework went away; reopen this screen.</string>
+    <string name="launch_during_home_gesture">Animate apps opened during the gesture home</string>
+    <string name="launch_during_home_gesture_summary">Pixel Launcher shows an app tapped while the window you left still flies home without its opening animation. With this on, that window lands at once and the app opens from its icon.</string>
+    <string name="open_duration">Opening from an icon</string>
+    <string name="close_duration">Closing home with Back</string>
+    <string name="home_spring_stiffness">Gesture home: spring stiffness</string>
+    <string name="home_spring_damping">Gesture home: spring damping</string>
+    <string name="slider_caption">%1$s: %2$s</string>
+    <string name="percent">%1$d%%</string>
+    <string name="ratio">%1$.2f</string>
+    <string name="stock">Stock</string>
+    <string name="restart_hint">Changes take effect at the next animation. After installing or updating the module, restart Pixel Launcher once.</string>
+</resources>
