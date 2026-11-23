@@ -68,7 +68,7 @@ internal class CatchByGesture(
             }
         }
         hooks.around(lookup.method(LauncherSymbols.cancelStateAnimation)) { _, _, proceed ->
-            if (resetting.get() == true && launch.isLaunching && tuning.read().springLaunch) {
+            if (resetting.get() == true && launch.isLaunching && tuning.read().let { it.springLaunch && it.catchOpeningApp }) {
                 trace.write("  catch: the launch keeps moving past the gesture's reset")
                 null
             } else {
@@ -76,7 +76,7 @@ internal class CatchByGesture(
             }
         }
         hooks.around(lookup.method(LauncherSymbols.launchRunnerCancelled)) { _, _, proceed ->
-            if (tuning.read().springLaunch) launch.handOver()?.let(::catch)
+            if (tuning.read().let { it.springLaunch && it.catchOpeningApp }) launch.handOver()?.let(::catch)
             proceed()
         }
         hooks.after(lookup.method(LauncherSymbols.recentsAnimationStart)) { _, args ->
@@ -109,6 +109,7 @@ internal class CatchByGesture(
             hostWroteAt = SystemClock.uptimeMillis()
             val matrix = args.firstOrNull() as? Matrix ?: return@replaceArguments args
             val values = FloatArray(MATRIX_VALUES).also(matrix::getValues)
+            val hostValues = values
             hostScale = values[Matrix.MSCALE_X]
             val crop = hostCrop ?: floatArrayOf(0f, 0f, window.screen.width().toFloat(), window.screen.height().toFloat())
             window.spring.target = WindowFit.shown(values, crop, hostRadius ?: window.spring.frame().radius)
@@ -118,6 +119,10 @@ internal class CatchByGesture(
                 return@replaceArguments args
             }
             fit = now
+            if (framesTraced < TRACED_FRAMES * 2) {
+                framesTraced++
+                trace.write("  catch: host scale ${hostValues[0]} at (${hostValues[2].toInt()}, ${hostValues[5].toInt()}) crop ${hostCrop?.joinToString { it.toInt().toString() }}; springs scale ${now.scale} at (${now.translateX.toInt()}, ${now.translateY.toInt()}) crop ${now.crop.joinToString { it.toInt().toString() }}")
+            }
             listOf(Matrix().apply {
                 setScale(now.scale, now.scale)
                 postTranslate(now.translateX, now.translateY)

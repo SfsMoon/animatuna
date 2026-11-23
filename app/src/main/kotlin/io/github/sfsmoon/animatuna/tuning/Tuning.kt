@@ -10,6 +10,11 @@ data class Tuning(
      * Pixel Launcher's fixed half-second curve.
      */
     val springLaunch: Boolean = true,
+    /**
+     * A gesture started while an app opens takes the window where the launch's
+     * springs have it. Experimental, and off until it works on the device.
+     */
+    val catchOpeningApp: Boolean = false,
     /** How long an app takes to open from its icon, in percent of Pixel Launcher's own. */
     val openDurationPercent: Int = STOCK_PERCENT,
     /** How long an app takes to close home outside the gesture (Back), in percent of Pixel Launcher's own. */

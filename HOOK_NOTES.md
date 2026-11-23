@@ -93,6 +93,16 @@ Only the window's place, each frame, comes from this module's springs.
     stand.
   - `RecentsAnimationController.finishController(false, ...)`, after: back
     to the app, the springs let go.
+- vc12 showed what still goes wrong (trace and video, frame by frame):
+  - The gesture does move the caught surface, and the hold between the
+    hand-over and its first move works.
+  - The home screen blinks to bare wallpaper for about 50 ms. Skipping the
+    stale reset and cancelling the launch ourselves leaves the launcher's
+    content hidden, as mid-launch.
+  - The window lands smaller than where the launch had it. The gesture's
+    surface does not seem to share the launch surface's coordinates.
+  - From vc13 the catch has its own switch, off by default. It traces the
+    gesture's own place next to the springs' for each caught frame.
 - vc6 to vc8 tried to catch a launch cut short by the gesture by stitching two
   animators together. That was dropped: the engine is to carry the gesture
   next, as one retargeted movement.
