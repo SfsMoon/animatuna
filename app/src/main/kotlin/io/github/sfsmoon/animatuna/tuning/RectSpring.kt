@@ -53,6 +53,14 @@ class RectSpring(start: Frame, private var motion: Motion) {
         get() = centerX.settledOn(target.centerX) && top.settledOn(target.top) && width.settledOn(target.width) &&
             shape.settledOn(target.height / target.width) && radius.settledOn(target.radius)
 
+    /** Whether the window stands within [pixels] of [target] in every part, however fast it moves. */
+    fun near(pixels: Float): Boolean {
+        val now = frame()
+        return abs(now.left - target.left) < pixels && abs(now.top - target.top) < pixels &&
+            abs(now.right - target.right) < pixels && abs(now.bottom - target.bottom) < pixels &&
+            abs(now.radius - target.radius) < pixels
+    }
+
     /** Moves on the springs of [next] from here, keeping each part's speed. */
     fun use(next: Motion, durationFactor: Float = 1f) {
         motion = next

@@ -8,6 +8,8 @@ import android.content.Context
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.RectF
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.SurfaceControl
 
@@ -45,16 +47,22 @@ internal class SpringLaunch(
 ) : LauncherPatch {
 
     /** One launch's window, from its first frame on. */
-    private class Launch(val surface: Any, val screen: Rect, val endRadius: Float, val durationFactor: Float) {
+    private class Launch(
+        val task: Int,
+        val surface: Any,
+        val screen: Rect,
+        val endRadius: Float,
+        val durationFactor: Float,
+        val set: AnimatorSet,
+    ) {
         var firstMatrix: FloatArray? = null
         var firstCrop: FloatArray? = null
-        var spring: RectSpring? = null
+        var window: MovingWindow? = null
         var fit: WindowFit? = null
-        var steppedAt = 0L
         var hostWroteAt = 0L
-        var keeper: ValueAnimator? = null
     }
 
+    private val main = Handler(Looper.getMainLooper())
     private val building = ThreadLocal<Any?>()
     @Volatile private var launch: Launch? = null
 
@@ -91,18 +99,19 @@ internal class SpringLaunch(
             if (properties?.let(surfaceOf::get) !== now.surface) return@replaceArguments args
             val matrix = args.firstOrNull() as? Matrix ?: return@replaceArguments args
             now.hostWroteAt = SystemClock.uptimeMillis()
-            if (now.spring == null) {
+            val window = now.window
+            if (window == null) {
                 now.firstMatrix = FloatArray(MATRIX_VALUES).also(matrix::getValues)
                 return@replaceArguments args
             }
-            listOf(matrixOf(step(now)))
+            listOf(matrixOf(window.step().also { now.fit = it }))
         }
         hooks.replaceArguments(lookup.method(LauncherSymbols.surfaceCrop)) { properties, args ->
             val now = launch ?: return@replaceArguments args
             if (properties?.let(surfaceOf::get) !== now.surface) return@replaceArguments args
             val crop = args.firstOrNull() as? Rect ?: return@replaceArguments args
             val fit = now.fit
-            if (now.spring == null) {
+            if (now.window == null) {
                 now.firstCrop = floatArrayOf(crop.left.toFloat(), crop.top.toFloat(), crop.right.toFloat(), crop.bottom.toFloat())
                 return@replaceArguments args
             }
@@ -112,7 +121,7 @@ internal class SpringLaunch(
             val now = launch ?: return@replaceArguments args
             if (properties?.let(surfaceOf::get) !== now.surface) return@replaceArguments args
             val radius = args.firstOrNull() as? Float ?: return@replaceArguments args
-            if (now.spring == null) {
+            if (now.window == null) {
                 start(now, radius)
                 return@replaceArguments args
             }
@@ -121,7 +130,7 @@ internal class SpringLaunch(
         }
         hooks.replaceArguments(lookup.method(LauncherSymbols.floatingIconUpdate)) { _, args ->
             val now = launch ?: return@replaceArguments args
-            val frame = now.spring?.frame() ?: return@replaceArguments args
+            val frame = now.window?.spring?.frame() ?: return@replaceArguments args
             if (args.getOrNull(5) != true) return@replaceArguments args
             args.toMutableList().apply {
                 this[1] = RectF(frame.left, frame.top, frame.right, frame.bottom)
@@ -133,14 +142,14 @@ internal class SpringLaunch(
     /** Takes the window of a launch about to start, and keeps the launch open until its spring settles. */
     private fun begin(opening: Any, set: AnimatorSet, context: Context) {
         val surface = field(opening, "leash") ?: return
+        val task = field(opening, "taskId") as? Int ?: return
         val screen = field(opening, "screenSpaceBounds") as? Rect ?: return
         if (screen.isEmpty || (field(opening, "rotationChange") as? Int ?: 0) != 0) return
         val endRadius = runCatching { cornerRadius.invoke(null, context) as Float }.getOrDefault(0f)
         val factor = tuning.read().openDurationFactor * ValueAnimator.getDurationScale().takeIf { it > 0f }.let { it ?: 1f }
-        val next = Launch(surface, Rect(screen), endRadius, factor)
+        val next = Launch(task, surface, Rect(screen), endRadius, factor, set)
         val keeper = ValueAnimator.ofFloat(0f, 1f).setDuration(KEEP_OPEN_MS)
         keeper.addUpdateListener { keep(next, it) }
-        next.keeper = keeper
         set.play(keeper)
         set.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
@@ -157,41 +166,44 @@ internal class SpringLaunch(
         val from = WindowFit.shown(matrix, crop, firstRadius)
         if (from.width <= 0f || from.height <= 0f) return
         val to = RectSpring.Frame(now.screen.left.toFloat(), now.screen.top.toFloat(), now.screen.right.toFloat(), now.screen.bottom.toFloat(), now.endRadius)
-        now.spring = RectSpring(from, Motion.LAUNCH).apply {
+        val spring = RectSpring(from, Motion.LAUNCH).apply {
             target = to
             use(Motion.LAUNCH, now.durationFactor)
         }
-        now.steppedAt = SystemClock.uptimeMillis()
+        now.window = MovingWindow(now.task, now.screen, now.durationFactor, spring)
         trace.write("  spring launch from ${from.width.toInt()}x${from.height.toInt()} at (${from.left.toInt()}, ${from.top.toInt()})")
-    }
-
-    /** Moves the spring to now, and says how the window is to be shown. */
-    private fun step(now: Launch): WindowFit {
-        val spring = requireNotNull(now.spring)
-        val time = SystemClock.uptimeMillis()
-        val seconds = (time - now.steppedAt).coerceIn(0L, MAX_FRAME_MS) / MS_PER_S
-        if (seconds > 0f) {
-            spring.step(seconds)
-            now.steppedAt = time
-        }
-        val fit = WindowFit.of(spring.frame(), now.screen.width().toFloat(), now.screen.height().toFloat())
-        now.fit = fit
-        return fit
     }
 
     /** Each frame of the launch: sets the window's place where Pixel Launcher no longer does, and lets the launch end once settled. */
     private fun keep(now: Launch, keeper: ValueAnimator) {
         if (launch !== now) return
-        val spring = now.spring ?: return
+        val window = now.window ?: return
         val time = SystemClock.uptimeMillis()
         if (time - now.hostWroteAt > HOST_QUIET_MS) {
-            val fit = step(now)
+            val fit = window.step().also { now.fit = it }
             runCatching { apply(now.surface as SurfaceControl, fit) }
         }
-        if (spring.settled) {
+        if (window.spring.settled) {
             trace.write("  spring launch settled")
             keeper.end()
         }
+    }
+
+    /** Whether an app's launch is moving its window on springs now. */
+    val isLaunching: Boolean get() = launch?.set?.isRunning == true
+
+    /**
+     * Hands the window of the launch running on to whoever takes it from the
+     * shell, as it stands: the launch no longer moves it, and is stopped on
+     * the main thread. Null where no launch has a window on springs.
+     */
+    fun handOver(): MovingWindow? {
+        val now = launch ?: return null
+        val window = now.window ?: return null
+        launch = null
+        main.post { if (now.set.isRunning) now.set.cancel() }
+        trace.write("  spring launch handed over, task ${now.task}")
+        return window
     }
 
     private fun apply(surface: SurfaceControl, fit: WindowFit) {
@@ -225,8 +237,5 @@ internal class SpringLaunch(
         /** How long Pixel Launcher must have set nothing before the window's place is set here. */
         const val HOST_QUIET_MS = 24L
 
-        /** The longest frame the spring steps over at once. */
-        const val MAX_FRAME_MS = 32L
-        const val MS_PER_S = 1000f
     }
 }

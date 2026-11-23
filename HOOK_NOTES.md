@@ -76,6 +76,23 @@ Only the window's place, each frame, comes from this module's springs.
     centre.
   - ColorOS's `CustomRectFSpringAnim` springs the top edge instead (tracking
     0) and grows the height down from it. vc10 does the same.
+- `CatchByGesture` (vc11) carries the same springs (`MovingWindow`) into a
+  gesture started mid-launch:
+  - `AbsSwipeUpHandler.resetStateForAnimationCancel()`, around, and
+    `StateManager.cancelAnimation()`, around: the cancel is skipped while a
+    spring launch runs (vc6 showed this removes the flash).
+  - `LauncherAnimationRunner.onAnimationCancelled()`, around: the shell has
+    taken the window, so `SpringLaunch.handOver()` stops the launch and gives
+    up its `MovingWindow`, place and speed included.
+  - `RecentsAnimationCallbacks.onAnimationStart(...)`, after: the gesture's
+    leash for that task; the springs switch to `Motion.FOLLOW`.
+  - `SurfaceProperties.setMatrix` / `setWindowCrop` / `setCornerRadius` on
+    that leash, arguments replaced: each place the gesture sets becomes the
+    springs' target, and the window shows the springs' place until it is
+    within 1.5 px of the gesture's, after which the gesture's own places
+    stand.
+  - `RecentsAnimationController.finishController(false, ...)`, after: back
+    to the app, the springs let go.
 - vc6 to vc8 tried to catch a launch cut short by the gesture by stitching two
   animators together. That was dropped: the engine is to carry the gesture
   next, as one retargeted movement.

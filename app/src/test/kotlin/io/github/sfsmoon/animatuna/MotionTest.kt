@@ -47,6 +47,24 @@ class MotionTest {
     }
 
     @Test
+    fun aCaughtWindowFollowsTheFingerUntilItCatchesUp() {
+        // Caught a tenth of the way into a launch, then held where the gesture puts it.
+        val spring = RectSpring(icon, Motion.LAUNCH).apply { target = screen }
+        repeat(4) { spring.step(1f / 120f) }
+        val finger = Frame(100f, 200f, 1244f, 2747f, 90f)
+        spring.target = finger
+        spring.use(Motion.FOLLOW)
+        assertFalse(spring.near(1.5f))
+        var frames = 0
+        while (!spring.near(1.5f) && frames < 240) {
+            spring.step(1f / 120f)
+            frames++
+        }
+        assertTrue("never caught up", spring.near(1.5f))
+        assertTrue("took $frames frames", frames < 90)
+    }
+
+    @Test
     fun slowerAnimationsSoftenTheSprings() {
         assertEquals(105f, Motion.LAUNCH.rect.slowedBy(2f).stiffness, 1e-3f)
         assertEquals(Motion.LAUNCH.rect, Motion.LAUNCH.rect.slowedBy(0f))

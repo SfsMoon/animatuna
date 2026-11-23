@@ -48,6 +48,17 @@ object LauncherSymbols {
     /** The corner radius of a full-screen window on this device. */
     val windowCornerRadius = Member("com.android.systemui.shared.system.QuickStepContract", "getWindowCornerRadius", "android.content.Context")
 
+    /**
+     * A gesture's handler, put back by a newer gesture's, setting the
+     * launcher back to its resting state; on the way it cancels the
+     * launcher's current animation, an app's launch among them.
+     */
+    val staleGestureReset = Member("com.android.quickstep.AbsSwipeUpHandler", "resetStateForAnimationCancel")
+    val cancelStateAnimation = Member("com.android.launcher3.statemanager.StateManager", "cancelAnimation")
+
+    /** The gesture's recents animation ending: (to home, then run, send user leave hint, at once, why). */
+    val finishRecents = Member(RECENTS_CONTROLLER, "finishController", "boolean", "java.lang.Runnable", "boolean", "boolean", GESTURE_LOG_TEXT)
+
     // What the launcher sets on a window's surface each frame, launching or under the gesture.
     val surfaceMatrix = Member(SURFACE, "setMatrix", "android.graphics.Matrix")
     val surfaceCrop = Member(SURFACE, "setWindowCrop", "android.graphics.Rect")
@@ -60,14 +71,14 @@ object LauncherSymbols {
     /** What else [DiagnosticTrace] follows: how recents animations and launch animations end. */
     val traced: List<Member> = listOf(
         Member(RECENTS_CALLBACKS, "onAnimationCanceled", "java.util.HashMap"),
-        Member(RECENTS_CONTROLLER, "finishController", "boolean", "java.lang.Runnable", "boolean", "boolean", GESTURE_LOG_TEXT),
+        finishRecents,
         launchRunnerCancelled,
     )
 
     val fields: List<HostField> = listOf(surfaceOf)
 
     val all: List<Member> = traced + listOf(
-        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, surfaceMatrix, surfaceCrop, surfaceCornerRadius,
+        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, cancelStateAnimation, surfaceMatrix, surfaceCrop, surfaceCornerRadius,
     )
 }
 

@@ -9,6 +9,7 @@ import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.sfsmoon.animatuna.core.AndroidLogger
 import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.XposedHooks
+import io.github.sfsmoon.animatuna.host.CatchByGesture
 import io.github.sfsmoon.animatuna.host.DiagnosticTrace
 import io.github.sfsmoon.animatuna.host.HomeGestureSpring
 import io.github.sfsmoon.animatuna.host.HostLookup
@@ -42,9 +43,11 @@ class AnimatunaModule : XposedModule() {
         val tuning = TuningStore(runCatching { getRemotePreferences(TuningStore.GROUP) }.getOrNull())
         val lookup = HostLookup(param.classLoader)
         val trace = TraceFile(File(param.applicationInfo.deviceProtectedDataDir, TRACE_FILE))
+        val launch = SpringLaunch(hooks, tuning, trace)
         val patches: Map<String, LauncherPatch> = mapOf(
             "diagnostic trace" to DiagnosticTrace(hooks, trace),
-            "spring launch" to SpringLaunch(hooks, tuning, trace),
+            "spring launch" to launch,
+            "catch an opening app by the gesture" to CatchByGesture(hooks, tuning, launch, trace),
             "window animation speed" to WindowAnimationSpeed(hooks, tuning),
             "home gesture spring" to HomeGestureSpring(hooks, tuning),
         )
