@@ -5,9 +5,11 @@ import kotlin.math.sqrt
 
 /**
  * A window's visible rectangle and corner on springs, as ColorOS moves an
- * app's window: its centre, its width, its shape (height to width) and its
- * corner radius each spring toward a target on their own, so the window can
- * change size and shape at different paces. A new target, or a new [Motion],
+ * app's window: its horizontal centre, its top edge, its width, its shape
+ * (height to width) and its corner radius each spring toward a target on
+ * their own, so the window can change size and shape at different paces. As
+ * on ColorOS (`CustomRectFSpringAnim`, tracking the top), the window hangs
+ * from its top edge: its height grows downward from there. A new target, or a new [Motion],
  * keeps where each part is and how fast it moves: one movement, retargeted.
  * Kept free of Android so it can be unit tested.
  */
@@ -18,7 +20,6 @@ class RectSpring(start: Frame, private var motion: Motion) {
         val width: Float get() = right - left
         val height: Float get() = bottom - top
         val centerX: Float get() = (left + right) / 2f
-        val centerY: Float get() = (top + bottom) / 2f
     }
 
     private class Part(var value: Float, var spring: Spring, val settleWithin: Float) {
@@ -39,7 +40,7 @@ class RectSpring(start: Frame, private var motion: Motion) {
     }
 
     private val centerX = Part(start.centerX, motion.rect, SETTLE_PX)
-    private val centerY = Part(start.centerY, motion.rect, SETTLE_PX)
+    private val top = Part(start.top, motion.rect, SETTLE_PX)
     private val width = Part(start.width, motion.rect, SETTLE_PX)
     private val shape = Part(start.height / start.width, motion.shape, SETTLE_SHAPE)
     private val radius = Part(start.radius, motion.corner, SETTLE_PX)
@@ -49,14 +50,14 @@ class RectSpring(start: Frame, private var motion: Motion) {
 
     /** Whether every part has settled on [target]. */
     val settled: Boolean
-        get() = centerX.settledOn(target.centerX) && centerY.settledOn(target.centerY) && width.settledOn(target.width) &&
+        get() = centerX.settledOn(target.centerX) && top.settledOn(target.top) && width.settledOn(target.width) &&
             shape.settledOn(target.height / target.width) && radius.settledOn(target.radius)
 
     /** Moves on the springs of [next] from here, keeping each part's speed. */
     fun use(next: Motion, durationFactor: Float = 1f) {
         motion = next
         centerX.spring = next.rect.slowedBy(durationFactor)
-        centerY.spring = next.rect.slowedBy(durationFactor)
+        top.spring = next.rect.slowedBy(durationFactor)
         width.spring = next.rect.slowedBy(durationFactor)
         shape.spring = next.shape.slowedBy(durationFactor)
         radius.spring = next.corner.slowedBy(durationFactor)
@@ -65,7 +66,7 @@ class RectSpring(start: Frame, private var motion: Motion) {
     /** Moves every part [seconds] toward [target], and says where the window is now. */
     fun step(seconds: Float): Frame {
         centerX.step(target.centerX, seconds)
-        centerY.step(target.centerY, seconds)
+        top.step(target.top, seconds)
         width.step(target.width, seconds)
         shape.step(target.height / target.width, seconds)
         radius.step(target.radius, seconds)
@@ -75,8 +76,8 @@ class RectSpring(start: Frame, private var motion: Motion) {
     /** Where the window is now. */
     fun frame(): Frame {
         val halfWidth = width.value / 2f
-        val halfHeight = width.value * shape.value / 2f
-        return Frame(centerX.value - halfWidth, centerY.value - halfHeight, centerX.value + halfWidth, centerY.value + halfHeight, radius.value)
+        val height = width.value * shape.value
+        return Frame(centerX.value - halfWidth, top.value, centerX.value + halfWidth, top.value + height, radius.value)
     }
 
     private companion object {

@@ -66,6 +66,16 @@ Only the window's place, each frame, comes from this module's springs.
 
   As ColorOS does, stiffness is divided by the square of the duration factor:
   the chosen opening duration times the system animator scale.
+- vc9 was recorded on the device and stepped through frame by frame
+  (about 90 fps), next to stock. The spring launch worked: the window grew
+  from the icon, the flying icon went with it, and frames were evenly paced.
+  - Stock fills the screen about 240 ms after the tap; the springs took
+    about 280 ms.
+  - The springs had a slow last stretch. The window stood full height a while
+    before full width, because the vertical position was sprung by its
+    centre.
+  - ColorOS's `CustomRectFSpringAnim` springs the top edge instead (tracking
+    0) and grows the height down from it. vc10 does the same.
 - vc6 to vc8 tried to catch a launch cut short by the gesture by stitching two
   animators together. That was dropped: the engine is to carry the gesture
   next, as one retargeted movement.
