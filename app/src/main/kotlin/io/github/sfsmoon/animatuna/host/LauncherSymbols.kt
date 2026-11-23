@@ -64,11 +64,8 @@ object LauncherSymbols {
     /** The spring a window flies home on after the gesture, starting: (context, device profile, the finger's speed in pixels a millisecond). */
     val homeSpringStart = Member(HOME_SPRING, "start", "android.content.Context", "com.android.launcher3.DeviceProfile", "android.graphics.PointF")
 
-    /** Where that spring starts from: its rectangle, and the centre and edge it tracks, read once it is built. */
-    val homeSpringStartRect = HostField(HOME_SPRING, "mStartRect")
-    val homeSpringCenterX = HostField(HOME_SPRING, "mCurrentCenterX")
-    val homeSpringTrackedY = HostField(HOME_SPRING, "mCurrentY")
-    val homeSpringTracking = HostField(HOME_SPRING, "mTracking")
+    /** Where that spring flies the window: the icon's rectangle, on screen. */
+    val homeSpringTarget = Member(HOME_SPRING, "getTargetRect")
 
     // What the launcher sets on a window's surface each frame, launching or under the gesture.
     val surfaceMatrix = Member(SURFACE, "setMatrix", "android.graphics.Matrix")
@@ -86,10 +83,10 @@ object LauncherSymbols {
         launchRunnerCancelled,
     )
 
-    val fields: List<HostField> = listOf(surfaceOf, homeSpringStartRect, homeSpringCenterX, homeSpringTrackedY, homeSpringTracking)
+    val fields: List<HostField> = listOf(surfaceOf)
 
     val all: List<Member> = traced + listOf(
-        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, cancelStateAnimation, homeSpringStart, surfaceMatrix, surfaceCrop, surfaceCornerRadius,
+        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, cancelStateAnimation, homeSpringStart, homeSpringTarget, surfaceMatrix, surfaceCrop, surfaceCornerRadius,
     )
 }
 

@@ -1,7 +1,6 @@
 package io.github.sfsmoon.animatuna.host
 
 import android.graphics.Matrix
-import android.graphics.PointF
 import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Handler
@@ -14,6 +13,7 @@ import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.Hooks
 import io.github.sfsmoon.animatuna.tuning.BreakFrame
 import io.github.sfsmoon.animatuna.tuning.Motion
+import io.github.sfsmoon.animatuna.tuning.RectSpring
 import io.github.sfsmoon.animatuna.tuning.TuningStore
 import io.github.sfsmoon.animatuna.tuning.WindowFit
 
@@ -36,8 +36,11 @@ import io.github.sfsmoon.animatuna.tuning.WindowFit
  *    its own, from the full screen. Each place it sets there becomes the
  *    springs' target instead, until the window has caught up with it.
  *
- * Where the gesture gives the window back to the app rather than taking it
- * on, the springs let it go.
+ * Let go home, the same springs fly the window to its icon
+ * ([Motion.HOME]), aimed where Pixel Launcher's own flight is headed
+ * (`RectFSpringAnim.getTargetRect`), its frames no longer read; the icon the
+ * window lands as follows them. Where the gesture gives the window back to
+ * the app rather than taking it on, the springs let it go.
  */
 internal class CatchByGesture(
     private val hooks: Hooks,
@@ -58,6 +61,9 @@ internal class CatchByGesture(
     @Volatile private var hostScale = 1f
     @Volatile private var fit: WindowFit? = null
     @Volatile private var hostWroteAt = 0L
+
+    /** Whether the caught window flies home on the springs, aimed at its icon, rather than following the finger. */
+    @Volatile private var flying = false
     @Volatile private var caughtAt = 0L
     private var framesTraced = 0
     private val choreographer by lazy { Choreographer.getInstance() }
@@ -102,30 +108,41 @@ internal class CatchByGesture(
         hooks.after(lookup.method(LauncherSymbols.finishRecents)) { _, args ->
             // Back to the app, the shell shows it whole again. Home, the launcher still flies the window
             // to its icon on the same surface: the springs go on catching up with it there.
-            if (caught != null && args.firstOrNull() == false) letGo("the gesture gave the window back to the app")
-        }
-        val startRect = lookup.field(LauncherSymbols.homeSpringStartRect)
-        val centerX = lookup.field(LauncherSymbols.homeSpringCenterX)
-        val trackedY = lookup.field(LauncherSymbols.homeSpringTrackedY)
-        val tracking = lookup.field(LauncherSymbols.homeSpringTracking)
-        hooks.replaceArguments(lookup.method(LauncherSymbols.homeSpringStart)) { spring, args ->
-            val window = caught ?: return@replaceArguments args
-            if (spring == null || surface == null) return@replaceArguments args
-            // As ColorOS's next scene copies the last one's place and speed, the flight home starts where the
-            // caught window is and as fast as it moves, rather than where the finger is: one movement, no seam.
-            val now = window.spring.frame()
-            val rect = startRect.get(spring) as? RectF ?: return@replaceArguments args
-            rect.set(now.left, now.top, now.right, now.bottom)
-            centerX.setFloat(spring, rect.centerX())
-            val (y, yVelocity) = when (tracking.getInt(spring)) {
-                TRACKING_TOP -> rect.top to window.spring.topVelocity
-                TRACKING_BOTTOM -> rect.bottom to window.spring.topVelocity + window.spring.heightVelocity
-                else -> rect.centerY() to window.spring.topVelocity + window.spring.heightVelocity / 2f
+            val window = caught ?: return@after
+            if (args.firstOrNull() == false) {
+                letGo("the gesture gave the window back to the app")
+            } else if (!flying) {
+                // Should no flight home be seen, the launcher's own frames, which the springs cannot read, stand.
+                main.postDelayed({ if (caught === window && !flying) letGo("no flight home seen") }, FLIGHT_WAIT_MS)
             }
-            trackedY.setFloat(spring, y)
-            letGo("the flight home took the window, at its place and speed")
+        }
+        val targetOf = lookup.method(LauncherSymbols.homeSpringTarget)
+        hooks.around(lookup.method(LauncherSymbols.homeSpringStart)) { spring, _, proceed ->
+            val window = caught
+            if (window != null && surface != null && spring != null) {
+                // As on ColorOS, the same springs fly the window home: from where they have it, as fast as it moves,
+                // to the icon Pixel Launcher's own flight is headed for. Its frames are no longer read, only its aim.
+                (targetOf.invoke(spring) as? RectF)?.let { icon ->
+                    val now = window.spring.frame()
+                    window.spring.target = RectSpring.Frame(icon.left, icon.top, icon.right, icon.bottom, now.radius * icon.width() / now.width)
+                    window.use(Motion.HOME)
+                    flying = true
+                    trace.write("  catch: flying home on the same springs, to ${icon.toShortString()}")
+                }
+            } else {
+                trace.write("  home flight starts, nothing caught")
+            }
+            proceed()
+        }
+        hooks.replaceArguments(lookup.method(LauncherSymbols.floatingIconUpdate)) { _, args ->
+            // The icon the window lands as follows the window, and its corner is where the window's heads.
+            val window = caught ?: return@replaceArguments args
+            if (!flying || args.getOrNull(5) != false) return@replaceArguments args
+            (args.getOrNull(4) as? Float)?.let { radius -> window.spring.target = window.spring.target.copy(radius = radius) }
+            val now = window.spring.frame()
             args.toMutableList().apply {
-                this[2] = PointF(window.spring.centerXVelocity / MS_PER_S, yVelocity / MS_PER_S)
+                this[1] = RectF(now.left, now.top, now.right, now.bottom)
+                this[4] = now.radius
             }
         }
         hooks.replaceArguments(lookup.method(LauncherSymbols.surfaceMatrix)) { properties, args ->
@@ -141,10 +158,12 @@ internal class CatchByGesture(
             val values = FloatArray(MATRIX_VALUES).also(matrix::getValues)
             val hostValues = values
             hostScale = values[Matrix.MSCALE_X]
-            val crop = hostCrop ?: floatArrayOf(0f, 0f, window.screen.width().toFloat(), window.screen.height().toFloat())
-            window.spring.target = WindowFit.shown(values, crop, hostRadius ?: window.spring.frame().radius)
+            if (!flying) {
+                val crop = hostCrop ?: floatArrayOf(0f, 0f, window.screen.width().toFloat(), window.screen.height().toFloat())
+                window.spring.target = WindowFit.shown(values, crop, hostRadius ?: window.spring.frame().radius)
+            }
             val now = window.step()
-            if (window.spring.near(CAUGHT_UP_PX)) {
+            if (!flying && window.spring.near(CAUGHT_UP_PX)) {
                 letGo("the window caught up with the gesture")
                 return@replaceArguments args
             }
@@ -202,6 +221,7 @@ internal class CatchByGesture(
     private val main = Handler(Looper.getMainLooper())
 
     private fun catch(window: MovingWindow) {
+        flying = false
         caughtAt = SystemClock.uptimeMillis()
         caught = window
         surface = null
@@ -215,6 +235,7 @@ internal class CatchByGesture(
 
     private fun letGo(why: String) {
         caught = null
+        flying = false
         surface = null
         fit = null
         hostCrop = null
@@ -228,11 +249,8 @@ internal class CatchByGesture(
     private companion object {
         const val MATRIX_VALUES = 9
 
-        /** `RectFSpringAnim`'s tracking: which edge of the window its vertical spring moves. */
-        const val TRACKING_TOP = 0
-        const val TRACKING_BOTTOM = 2
-
-        const val MS_PER_S = 1000f
+        /** How long after the gesture ends home its flight must have started for the springs to fly the window. */
+        const val FLIGHT_WAIT_MS = 120L
 
         /** How long Pixel Launcher must have set nothing on the caught surface before the springs set it. */
         const val HOST_QUIET_MS = 24L

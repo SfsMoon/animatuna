@@ -144,18 +144,21 @@ Only the window's place, each frame, comes from this module's springs.
     (`finishController(true)`), before the springs had caught up, so the
     window leapt to the launcher's place. It now goes on catching up through
     the flight home. It lets go when near, or back in the app.
-- vc18 closes the seam between the catch and the flight home, which showed on
-  quick opens and closes. On release, Pixel Launcher's home spring started
-  from the finger's place and speed while the caught window was still
-  catching up: two places, two speeds.
-  - `RectFSpringAnim.start(Context, DeviceProfile, PointF)`, arguments
-    replaced, while a window is caught. Before the spring reads them, its
-    `mStartRect`, `mCurrentCenterX` and `mCurrentY` (per its `mTracking`) are
-    set to the caught window's place. The finger's speed is replaced by the
-    springs' own (`RectSpring.centerXVelocity` / `topVelocity` /
-    `heightVelocity`), in pixels a millisecond.
-  - The catch then lets go. This is what ColorOS's `copyNextAnimState` and
-    `inheritVelocity` do from one scene to the next.
+- vc18 tried to start Pixel Launcher's home spring from the caught window's
+  place and speed. Its trace showed that hook never ran.
+  - The catch kept following the launcher's flight frames. During the flight
+    those crop the window toward the icon in a way `WindowFit.shown` misreads.
+  - In the video the window flew up and left, away from its icon.
+- vc19 flies a caught window home on the same springs, as ColorOS does:
+  - `RectFSpringAnim.start`, around: while a window is caught, its target is
+    set to the spring's `getTargetRect()` (the icon) and the springs switch to
+    `Motion.HOME`. From then on the launcher's frames on that surface are only
+    overwritten, never read.
+  - `FloatingIconView.update` while closing (`isOpening` false), arguments
+    replaced: the icon's rectangle and corner follow the springs, and its
+    corner becomes the springs' target corner.
+  - Every home flight start is traced. If none starts within 120 ms of
+    `finishController(true)`, the catch lets go.
 - Known: while a caught window is small, the home screen behind it shows bare
   wallpaper. Starting the gesture puts the launcher in its "behind an app"
   state (`BaseActivityInterface$DefaultAnimationFactory.initBackgroundStateUI`),
