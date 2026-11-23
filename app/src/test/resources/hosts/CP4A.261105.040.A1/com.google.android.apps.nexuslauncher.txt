@@ -509,3 +509,54 @@ class com.android.systemui.shared.system.QuickStepContract
   method isAssistantGestureDisabled(long)
   method isGesturalMode(int)
   method supportsRoundedCornersOnWindows(android.content.res.Resources)
+class com.android.quickstep.util.RectFSpringAnim
+  field RECT_CENTER_X
+  field RECT_SCALE_PROGRESS
+  field RECT_Y
+  field mAnimatorListeners
+  field mAnimsStarted
+  field mCurrentCenterX
+  field mCurrentRect
+  field mCurrentScaleProgress
+  field mCurrentY
+  field mDampingX
+  field mDampingY
+  field mOnUpdateListeners
+  field mRectScaleAnim
+  field mRectScaleAnimEnded
+  field mRectStiffness
+  field mRectXAnimEnded
+  field mRectXSpring
+  field mRectYAnimEnded
+  field mRectYSpring
+  field mStartRect
+  field mStiffnessX
+  field mStiffnessY
+  field mTargetRect
+  field mTracking
+  method <init>(com.android.quickstep.util.RectFSpringAnim$SpringConfig)
+  method a(com.android.quickstep.util.RectFSpringAnim,w5.l,boolean,float,float)
+  method addAnimatorListener(android.animation.Animator$AnimatorListener)
+  method addOnUpdateListener(com.android.quickstep.util.RectFSpringAnim$OnUpdateListener)
+  method adjustVelocity(float,long,long,float)
+  method b(com.android.quickstep.util.RectFSpringAnim,w5.l,boolean,float,float)
+  method c(com.android.quickstep.util.RectFSpringAnim,w5.l,boolean,float,float)
+  method cancel()
+  method d(com.android.quickstep.util.RectFSpringAnim)
+  method e(com.android.quickstep.util.RectFSpringAnim)
+  method end()
+  method f(com.android.quickstep.util.RectFSpringAnim)
+  method g(com.android.quickstep.util.RectFSpringAnim,float)
+  method getTargetRect()
+  method getTrackedYFromRect(android.graphics.RectF)
+  method h(com.android.quickstep.util.RectFSpringAnim,float)
+  method i(com.android.quickstep.util.RectFSpringAnim,float)
+  method isEnded()
+  method j(com.android.quickstep.util.RectFSpringAnim)
+  method lambda$start$0(w5.l,boolean,float,float)
+  method lambda$start$1(w5.l,boolean,float,float)
+  method lambda$start$2(w5.l,boolean,float,float)
+  method maybeOnEnd()
+  method onTargetPositionChanged()
+  method onUpdate()
+  method start(android.content.Context,com.android.launcher3.DeviceProfile,android.graphics.PointF)

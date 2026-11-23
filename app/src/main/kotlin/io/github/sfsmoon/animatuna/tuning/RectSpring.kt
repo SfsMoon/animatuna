@@ -81,6 +81,15 @@ class RectSpring(start: Frame, private var motion: Motion) {
         return frame()
     }
 
+    /** How fast the window's horizontal centre moves, in pixels a second. */
+    val centerXVelocity: Float get() = centerX.velocity
+
+    /** How fast the window's top edge moves, in pixels a second. */
+    val topVelocity: Float get() = top.velocity
+
+    /** How fast the window's height changes, in pixels a second: its width's speed and its shape's together. */
+    val heightVelocity: Float get() = width.velocity * shape.value + width.value * shape.velocity
+
     /** Where the window is now. */
     fun frame(): Frame {
         val halfWidth = width.value / 2f

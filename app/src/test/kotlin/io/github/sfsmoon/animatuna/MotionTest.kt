@@ -65,6 +65,19 @@ class MotionTest {
     }
 
     @Test
+    fun theSpringTellsHowFastTheWindowMoves() {
+        val spring = RectSpring(icon, Motion.LAUNCH).apply { target = screen }
+        repeat(6) { spring.step(1f / 120f) }
+        // Opening from a low icon: rising, widening, growing taller.
+        assertTrue(spring.topVelocity < 0f)
+        assertTrue(spring.heightVelocity > 0f)
+        val before = spring.frame()
+        spring.step(1f / 1000f)
+        val after = spring.frame()
+        assertEquals(spring.topVelocity / 1000f, after.top - before.top, 2f)
+    }
+
+    @Test
     fun slowerAnimationsSoftenTheSprings() {
         assertEquals(105f, Motion.LAUNCH.rect.slowedBy(2f).stiffness, 1e-3f)
         assertEquals(Motion.LAUNCH.rect, Motion.LAUNCH.rect.slowedBy(0f))

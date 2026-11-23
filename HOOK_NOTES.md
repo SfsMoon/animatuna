@@ -144,6 +144,18 @@ Only the window's place, each frame, comes from this module's springs.
     (`finishController(true)`), before the springs had caught up, so the
     window leapt to the launcher's place. It now goes on catching up through
     the flight home. It lets go when near, or back in the app.
+- vc18 closes the seam between the catch and the flight home, which showed on
+  quick opens and closes. On release, Pixel Launcher's home spring started
+  from the finger's place and speed while the caught window was still
+  catching up: two places, two speeds.
+  - `RectFSpringAnim.start(Context, DeviceProfile, PointF)`, arguments
+    replaced, while a window is caught. Before the spring reads them, its
+    `mStartRect`, `mCurrentCenterX` and `mCurrentY` (per its `mTracking`) are
+    set to the caught window's place. The finger's speed is replaced by the
+    springs' own (`RectSpring.centerXVelocity` / `topVelocity` /
+    `heightVelocity`), in pixels a millisecond.
+  - The catch then lets go. This is what ColorOS's `copyNextAnimState` and
+    `inheritVelocity` do from one scene to the next.
 - Known: while a caught window is small, the home screen behind it shows bare
   wallpaper. Starting the gesture puts the launcher in its "behind an app"
   state (`BaseActivityInterface$DefaultAnimationFactory.initBackgroundStateUI`),

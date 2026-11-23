@@ -59,6 +59,17 @@ object LauncherSymbols {
     /** The gesture's recents animation ending: (to home, then run, send user leave hint, at once, why). */
     val finishRecents = Member(RECENTS_CONTROLLER, "finishController", "boolean", "java.lang.Runnable", "boolean", "boolean", GESTURE_LOG_TEXT)
 
+    private const val HOME_SPRING = "com.android.quickstep.util.RectFSpringAnim"
+
+    /** The spring a window flies home on after the gesture, starting: (context, device profile, the finger's speed in pixels a millisecond). */
+    val homeSpringStart = Member(HOME_SPRING, "start", "android.content.Context", "com.android.launcher3.DeviceProfile", "android.graphics.PointF")
+
+    /** Where that spring starts from: its rectangle, and the centre and edge it tracks, read once it is built. */
+    val homeSpringStartRect = HostField(HOME_SPRING, "mStartRect")
+    val homeSpringCenterX = HostField(HOME_SPRING, "mCurrentCenterX")
+    val homeSpringTrackedY = HostField(HOME_SPRING, "mCurrentY")
+    val homeSpringTracking = HostField(HOME_SPRING, "mTracking")
+
     // What the launcher sets on a window's surface each frame, launching or under the gesture.
     val surfaceMatrix = Member(SURFACE, "setMatrix", "android.graphics.Matrix")
     val surfaceCrop = Member(SURFACE, "setWindowCrop", "android.graphics.Rect")
@@ -75,10 +86,10 @@ object LauncherSymbols {
         launchRunnerCancelled,
     )
 
-    val fields: List<HostField> = listOf(surfaceOf)
+    val fields: List<HostField> = listOf(surfaceOf, homeSpringStartRect, homeSpringCenterX, homeSpringTrackedY, homeSpringTracking)
 
     val all: List<Member> = traced + listOf(
-        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, cancelStateAnimation, surfaceMatrix, surfaceCrop, surfaceCornerRadius,
+        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, cancelStateAnimation, homeSpringStart, surfaceMatrix, surfaceCrop, surfaceCornerRadius,
     )
 }
 

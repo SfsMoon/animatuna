@@ -1,7 +1,9 @@
 package io.github.sfsmoon.animatuna.host
 
 import android.graphics.Matrix
+import android.graphics.PointF
 import android.graphics.Rect
+import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -102,6 +104,30 @@ internal class CatchByGesture(
             // to its icon on the same surface: the springs go on catching up with it there.
             if (caught != null && args.firstOrNull() == false) letGo("the gesture gave the window back to the app")
         }
+        val startRect = lookup.field(LauncherSymbols.homeSpringStartRect)
+        val centerX = lookup.field(LauncherSymbols.homeSpringCenterX)
+        val trackedY = lookup.field(LauncherSymbols.homeSpringTrackedY)
+        val tracking = lookup.field(LauncherSymbols.homeSpringTracking)
+        hooks.replaceArguments(lookup.method(LauncherSymbols.homeSpringStart)) { spring, args ->
+            val window = caught ?: return@replaceArguments args
+            if (spring == null || surface == null) return@replaceArguments args
+            // As ColorOS's next scene copies the last one's place and speed, the flight home starts where the
+            // caught window is and as fast as it moves, rather than where the finger is: one movement, no seam.
+            val now = window.spring.frame()
+            val rect = startRect.get(spring) as? RectF ?: return@replaceArguments args
+            rect.set(now.left, now.top, now.right, now.bottom)
+            centerX.setFloat(spring, rect.centerX())
+            val (y, yVelocity) = when (tracking.getInt(spring)) {
+                TRACKING_TOP -> rect.top to window.spring.topVelocity
+                TRACKING_BOTTOM -> rect.bottom to window.spring.topVelocity + window.spring.heightVelocity
+                else -> rect.centerY() to window.spring.topVelocity + window.spring.heightVelocity / 2f
+            }
+            trackedY.setFloat(spring, y)
+            letGo("the flight home took the window, at its place and speed")
+            args.toMutableList().apply {
+                this[2] = PointF(window.spring.centerXVelocity / MS_PER_S, yVelocity / MS_PER_S)
+            }
+        }
         hooks.replaceArguments(lookup.method(LauncherSymbols.surfaceMatrix)) { properties, args ->
             val window = caught ?: return@replaceArguments args
             val written = properties?.let(surfaceOf::get)
@@ -201,6 +227,12 @@ internal class CatchByGesture(
 
     private companion object {
         const val MATRIX_VALUES = 9
+
+        /** `RectFSpringAnim`'s tracking: which edge of the window its vertical spring moves. */
+        const val TRACKING_TOP = 0
+        const val TRACKING_BOTTOM = 2
+
+        const val MS_PER_S = 1000f
 
         /** How long Pixel Launcher must have set nothing on the caught surface before the springs set it. */
         const val HOST_QUIET_MS = 24L
