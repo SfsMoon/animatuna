@@ -16,7 +16,7 @@ import io.github.sfsmoon.animatuna.tuning.TuningStore
  * the factor of the runner building it. A set a runner starts later, once its
  * own call has returned, keeps Pixel Launcher's timing.
  */
-internal class WindowAnimationSpeed(private val hooks: Hooks, private val tuning: TuningStore) : LauncherPatch {
+internal class WindowAnimationSpeed(private val hooks: Hooks, private val tuning: TuningStore) : HostPatch {
 
     private enum class Kind { OPEN, CLOSE }
 

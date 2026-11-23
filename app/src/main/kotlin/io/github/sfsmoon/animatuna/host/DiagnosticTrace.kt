@@ -14,7 +14,7 @@ import io.github.sfsmoon.animatuna.hook.Hooks
  * the recents animation the gesture starts and how it ends. A member a build
  * lacks is left out of the trace.
  */
-internal class DiagnosticTrace(private val hooks: Hooks, private val trace: TraceFile) : LauncherPatch {
+internal class DiagnosticTrace(private val hooks: Hooks, private val trace: TraceFile) : HostPatch {
 
     override fun install(lookup: HostLookup) {
         trace.write("trace on")

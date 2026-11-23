@@ -103,6 +103,32 @@ Only the window's place, each frame, comes from this module's springs.
     surface does not seem to share the launch surface's coordinates.
   - From vc13 the catch has its own switch, off by default. It traces the
     gesture's own place next to the springs' for each caught frame.
+- What ColorOS 16 does here (OplusLauncher's `RemoteAnimationRunnerCompat.mergeAnimation`,
+  read with jadx):
+  - It does not end the launch when the shell merges the gesture into it. It
+    reads the gesture's recents controller from its framework's
+    `TransitionInfo.mExt` and keeps the same spring running under the finger
+    (`continueNextAnimDirectlyIfCould`).
+  - It hands the window's place (`BreakParam`: position, scale, crop, corner,
+    alpha) and an interrupt flag (`WindowContainerTransaction.mExt`) to its
+    shell, which sets that place on the task's surface between the two
+    transitions.
+  - Stock Android has none of these extensions, so the window stands at full
+    screen between the launch ending and the gesture starting.
+- vc14 does ColorOS's hand-over across two processes. The module's scope now
+  takes SystemUI too:
+  - Launcher: at the hand-over, `CatchByGesture` writes the window's place
+    (`BreakFrame`) to the global setting `animatuna_break_frame`. The launcher
+    holds `WRITE_SECURE_SETTINGS`.
+  - SystemUI: `BreakFrameInShell`, around
+    `RecentsTransitionHandler.startAnimation(IBinder, TransitionInfo, Transaction, Transaction, TransitionFinishCallback)`.
+    When a fresh break frame (under 1 s old) names a task in the transition,
+    its place is set on that change's leash in the start transaction, so the
+    gesture's transition starts with the window there.
+- Known: while a caught window is small, the home screen behind it shows bare
+  wallpaper. Starting the gesture puts the launcher in its "behind an app"
+  state (`BaseActivityInterface$DefaultAnimationFactory.initBackgroundStateUI`),
+  which hides the workspace. To do.
 - vc6 to vc8 tried to catch a launch cut short by the gesture by stitching two
   animators together. That was dropped: the engine is to carry the gesture
   next, as one retargeted movement.

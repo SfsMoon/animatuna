@@ -11,7 +11,8 @@ animations on Android 17.
 ## Install
 
 1. Install the APK and enable it in Vector or LSPosed. Its scope is Pixel
-   Launcher (`com.google.android.apps.nexuslauncher`).
+   Launcher (`com.google.android.apps.nexuslauncher`) and, for the
+   experimental catch by the gesture, System UI (`com.android.systemui`).
 2. Restart Pixel Launcher: `adb shell am force-stop com.google.android.apps.nexuslauncher`.
 3. Open Animatuna to choose. Changes apply at the next animation.
 

@@ -43,7 +43,7 @@ internal class SpringLaunch(
     private val hooks: Hooks,
     private val tuning: TuningStore,
     private val trace: TraceFile,
-) : LauncherPatch {
+) : HostPatch {
 
     /** One launch's window, from its first frame on. */
     private class Launch(
@@ -137,6 +137,7 @@ internal class SpringLaunch(
         val task = field(opening, "taskId") as? Int ?: return
         val screen = field(opening, "screenSpaceBounds") as? Rect ?: return
         if (screen.isEmpty || (field(opening, "rotationChange") as? Int ?: 0) != 0) return
+        this.context = context.applicationContext
         val endRadius = runCatching { cornerRadius.invoke(null, context) as Float }.getOrDefault(0f)
         val factor = tuning.read().openDurationFactor * ValueAnimator.getDurationScale().takeIf { it > 0f }.let { it ?: 1f }
         val next = Launch(task, surface, Rect(screen), endRadius, factor, set)
@@ -180,6 +181,10 @@ internal class SpringLaunch(
             keeper.end()
         }
     }
+
+    /** The launcher's application, once a launch has shown it, to write the hand-over to. */
+    @Volatile var context: Context? = null
+        private set
 
     /** Whether an app's launch is moving its window on springs now. */
     val isLaunching: Boolean get() = launch?.set?.isRunning == true

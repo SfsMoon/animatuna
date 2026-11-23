@@ -30,14 +30,20 @@ internal object SurfacePlacer {
     /** Shows [surface] as [fit] says, now; false where it cannot. */
     fun place(surface: Any?, fit: WindowFit): Boolean {
         val control = surface as? SurfaceControl ?: return false
-        val matrix = setMatrix ?: return false
         if (!control.isValid) return false
         SurfaceControl.Transaction().use { transaction ->
-            matrix.invoke(transaction, control, matrixOf(fit), FloatArray(MATRIX_VALUES))
-            setWindowCrop?.invoke(transaction, control, rectOf(fit.crop)) ?: transaction.setCrop(control, rectOf(fit.crop))
-            setCorner?.invoke(transaction, control, fit.surfaceRadius)
+            if (!put(transaction, control, fit)) return false
             transaction.apply()
         }
+        return true
+    }
+
+    /** Puts [fit] for [surface] into [transaction], to be applied with it; false where it cannot. */
+    fun put(transaction: SurfaceControl.Transaction, surface: SurfaceControl, fit: WindowFit): Boolean {
+        val matrix = setMatrix ?: return false
+        matrix.invoke(transaction, surface, matrixOf(fit), FloatArray(MATRIX_VALUES))
+        setWindowCrop?.invoke(transaction, surface, rectOf(fit.crop)) ?: transaction.setCrop(surface, rectOf(fit.crop))
+        setCorner?.invoke(transaction, surface, fit.surfaceRadius)
         return true
     }
 

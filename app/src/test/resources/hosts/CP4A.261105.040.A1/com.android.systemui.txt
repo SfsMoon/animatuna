@@ -1,0 +1,12 @@
+# Recorded from SystemUIGoogle on CP4A.261105.040.A1, by dexdump:
+# the classes this module reaches, with their methods; names only, no host code.
+class com.android.wm.shell.recents.RecentsTransitionHandler
+  method findController(android.os.IBinder)
+  method handleRequest(android.os.IBinder,android.window.TransitionRequestInfo)
+  method mergeAnimation(android.os.IBinder,android.window.TransitionInfo,android.view.SurfaceControl$Transaction,android.view.SurfaceControl$Transaction,android.os.IBinder,com.android.wm.shell.transition.Transitions$TransitionFinishCallback)
+  method onTransitionConsumed(android.os.IBinder,boolean,android.view.SurfaceControl$Transaction)
+  method onTransitionReady(android.os.IBinder,android.window.TransitionInfo,android.view.SurfaceControl$Transaction,android.view.SurfaceControl$Transaction)
+  method setFinishTransactionSupplier(java.util.function.Supplier)
+  method startAnimation(android.os.IBinder,android.window.TransitionInfo,android.view.SurfaceControl$Transaction,android.view.SurfaceControl$Transaction,com.android.wm.shell.transition.Transitions$TransitionFinishCallback)
+  method startRecentsTransition(android.app.PendingIntent,android.content.Intent,android.os.Bundle,android.window.WindowContainerTransaction,android.app.IApplicationThread,com.android.wm.shell.recents.IRecentsAnimationRunner)
+  method takeTaskSnapshot(int)

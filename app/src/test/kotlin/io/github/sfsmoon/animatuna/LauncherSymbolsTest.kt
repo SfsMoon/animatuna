@@ -6,13 +6,25 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 import io.github.sfsmoon.animatuna.host.LauncherSymbols
+import io.github.sfsmoon.animatuna.host.ShellSymbols
 
 /** Every launcher member and field this module reaches is there in each recorded Pixel Launcher build. */
 class LauncherSymbolsTest {
 
     @Test
+    fun everyShellMemberIsInEveryRecordedBuild() {
+        val fixtures = recordedBuilds(ShellSymbols.PACKAGE)
+        assertTrue("No SystemUI build recorded", fixtures.isNotEmpty())
+        fixtures.forEach { fixture ->
+            val members = methodsByClass(fixture)
+            val missing = ShellSymbols.all.filter { members[it.className]?.contains(it.signature) != true }
+            assertTrue("${fixture.parentFile.name} lacks ${missing.map { "${it.className}.${it.signature}" }}", missing.isEmpty())
+        }
+    }
+
+    @Test
     fun everyMemberIsInEveryRecordedBuild() {
-        val fixtures = recordedBuilds()
+        val fixtures = recordedBuilds(LauncherSymbols.PACKAGE)
         assertTrue("No Pixel Launcher build recorded", fixtures.isNotEmpty())
         fixtures.forEach { fixture ->
             val members = methodsByClass(fixture)
@@ -23,9 +35,9 @@ class LauncherSymbolsTest {
         }
     }
 
-    private fun recordedBuilds(): List<File> {
+    private fun recordedBuilds(host: String): List<File> {
         val hosts = File(requireNotNull(javaClass.classLoader.getResource("hosts")).toURI())
-        return hosts.listFiles().orEmpty().mapNotNull { File(it, "${LauncherSymbols.PACKAGE}.txt").takeIf(File::isFile) }
+        return hosts.listFiles().orEmpty().mapNotNull { File(it, "$host.txt").takeIf(File::isFile) }
     }
 
     private fun methodsByClass(fixture: File): Map<String, Set<String>> {

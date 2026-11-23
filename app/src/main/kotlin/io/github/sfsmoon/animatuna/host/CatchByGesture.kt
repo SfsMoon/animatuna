@@ -5,10 +5,12 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.Choreographer
 
 import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.Hooks
+import io.github.sfsmoon.animatuna.tuning.BreakFrame
 import io.github.sfsmoon.animatuna.tuning.Motion
 import io.github.sfsmoon.animatuna.tuning.TuningStore
 import io.github.sfsmoon.animatuna.tuning.WindowFit
@@ -40,7 +42,7 @@ internal class CatchByGesture(
     private val tuning: TuningStore,
     private val launch: SpringLaunch,
     private val trace: TraceFile,
-) : LauncherPatch {
+) : HostPatch {
 
     private val resetting = ThreadLocal<Boolean>()
 
@@ -175,6 +177,10 @@ internal class CatchByGesture(
         surface = null
         fit = null
         trace.write("  catch: holding task ${window.task} for the gesture")
+        // The shell shows the window at the full screen until the gesture's transition starts; SystemUI starts it here instead.
+        val frame = BreakFrame(window.task, SystemClock.uptimeMillis(), window.step())
+        runCatching { Settings.Global.putString(launch.context?.contentResolver, BreakFrame.KEY, frame.encode()) }
+            .onFailure { trace.write("  catch: could not hand the frame to SystemUI: $it") }
     }
 
     private fun letGo(why: String) {

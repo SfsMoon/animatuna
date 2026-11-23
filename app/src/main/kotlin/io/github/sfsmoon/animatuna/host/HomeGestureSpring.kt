@@ -17,7 +17,7 @@ import io.github.sfsmoon.animatuna.tuning.TuningStore
  * answered with the chosen values; the code that builds the spring, renamed in
  * a release build, is never reached.
  */
-internal class HomeGestureSpring(private val hooks: Hooks, private val tuning: TuningStore) : LauncherPatch {
+internal class HomeGestureSpring(private val hooks: Hooks, private val tuning: TuningStore) : HostPatch {
 
     /** What each resource id read is, found once by its name. */
     private val kinds = ConcurrentHashMap<Int, SpringResource>()
