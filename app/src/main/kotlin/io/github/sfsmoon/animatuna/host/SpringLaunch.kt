@@ -11,7 +11,6 @@ import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.view.SurfaceControl
 
 import java.lang.reflect.Method
 
@@ -67,17 +66,10 @@ internal class SpringLaunch(
     @Volatile private var launch: Launch? = null
 
     private lateinit var cornerRadius: Method
-    private var setMatrix: Method? = null
-    private var setWindowCrop: Method? = null
-    private var setCorner: Method? = null
 
     override fun install(lookup: HostLookup) {
         val surfaceOf = lookup.field(LauncherSymbols.surfaceOf)
         cornerRadius = lookup.method(LauncherSymbols.windowCornerRadius)
-        // The transaction's matrix, window crop and corner setters are hidden from apps; they are reached by name.
-        setMatrix = runCatching { SurfaceControl.Transaction::class.java.getMethod("setMatrix", SurfaceControl::class.java, Matrix::class.java, FloatArray::class.java) }.getOrNull()
-        setWindowCrop = runCatching { SurfaceControl.Transaction::class.java.getMethod("setWindowCrop", SurfaceControl::class.java, Rect::class.java) }.getOrNull()
-        setCorner = runCatching { SurfaceControl.Transaction::class.java.getMethod("setCornerRadius", SurfaceControl::class.java, Float::class.javaPrimitiveType) }.getOrNull()
 
         hooks.around(lookup.method(LauncherSymbols.appLaunchAnimationStart)) { _, args, proceed ->
             building.set((args.getOrNull(1) as? Array<*>)?.firstOrNull { field(it, "mode") == MODE_OPENING })
@@ -104,7 +96,7 @@ internal class SpringLaunch(
                 now.firstMatrix = FloatArray(MATRIX_VALUES).also(matrix::getValues)
                 return@replaceArguments args
             }
-            listOf(matrixOf(window.step().also { now.fit = it }))
+            listOf(SurfacePlacer.matrixOf(window.step().also { now.fit = it }))
         }
         hooks.replaceArguments(lookup.method(LauncherSymbols.surfaceCrop)) { properties, args ->
             val now = launch ?: return@replaceArguments args
@@ -115,7 +107,7 @@ internal class SpringLaunch(
                 now.firstCrop = floatArrayOf(crop.left.toFloat(), crop.top.toFloat(), crop.right.toFloat(), crop.bottom.toFloat())
                 return@replaceArguments args
             }
-            if (fit == null) args else listOf(rectOf(fit.crop))
+            if (fit == null) args else listOf(SurfacePlacer.rectOf(fit.crop))
         }
         hooks.replaceArguments(lookup.method(LauncherSymbols.surfaceCornerRadius)) { properties, args ->
             val now = launch ?: return@replaceArguments args
@@ -181,7 +173,7 @@ internal class SpringLaunch(
         val time = SystemClock.uptimeMillis()
         if (time - now.hostWroteAt > HOST_QUIET_MS) {
             val fit = window.step().also { now.fit = it }
-            runCatching { apply(now.surface as SurfaceControl, fit) }
+            runCatching { SurfacePlacer.place(now.surface, fit) }
         }
         if (window.spring.settled) {
             trace.write("  spring launch settled")
@@ -205,24 +197,6 @@ internal class SpringLaunch(
         trace.write("  spring launch handed over, task ${now.task}")
         return window
     }
-
-    private fun apply(surface: SurfaceControl, fit: WindowFit) {
-        if (!surface.isValid) return
-        SurfaceControl.Transaction().use { transaction ->
-            val matrix = setMatrix ?: return
-            matrix.invoke(transaction, surface, matrixOf(fit), FloatArray(MATRIX_VALUES))
-            setWindowCrop?.invoke(transaction, surface, rectOf(fit.crop)) ?: transaction.setCrop(surface, rectOf(fit.crop))
-            setCorner?.invoke(transaction, surface, fit.surfaceRadius)
-            transaction.apply()
-        }
-    }
-
-    private fun matrixOf(fit: WindowFit) = Matrix().apply {
-        setScale(fit.scale, fit.scale)
-        postTranslate(fit.translateX, fit.translateY)
-    }
-
-    private fun rectOf(crop: FloatArray) = Rect(crop[0].toInt(), crop[1].toInt(), crop[2].toInt(), crop[3].toInt())
 
     // RemoteAnimationTarget is hidden from apps; its public fields are read by name.
     private fun field(target: Any?, name: String): Any? = runCatching { target?.javaClass?.getField(name)?.get(target) }.getOrNull()

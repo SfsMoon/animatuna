@@ -2,6 +2,10 @@ package io.github.sfsmoon.animatuna.host
 
 import android.graphics.Matrix
 import android.graphics.Rect
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.view.Choreographer
 
 import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.Hooks
@@ -49,6 +53,9 @@ internal class CatchByGesture(
     @Volatile private var hostRadius: Float? = null
     @Volatile private var hostScale = 1f
     @Volatile private var fit: WindowFit? = null
+    @Volatile private var hostWroteAt = 0L
+    private var framesTraced = 0
+    private val choreographer by lazy { Choreographer.getInstance() }
 
     override fun install(lookup: HostLookup) {
         val surfaceOf = lookup.field(LauncherSymbols.surfaceOf)
@@ -82,16 +89,24 @@ internal class CatchByGesture(
             surface = field(app, "leash")
             hostCrop = null
             hostRadius = null
+            framesTraced = 0
             window.use(Motion.FOLLOW)
-            trace.write("  catch: the gesture took task ${window.task}")
+            trace.write("  catch: the gesture took task ${window.task}, surface ${surface?.let(System::identityHashCode)}")
+            main.post { hold(window) }
         }
         hooks.after(lookup.method(LauncherSymbols.finishRecents)) { _, args ->
-            // Back to the app: the shell shows it whole again, which the springs no longer know.
-            if (caught != null && args.firstOrNull() == false) letGo("the gesture gave the window back to the app")
+            // The gesture's recents animation is over: the shell has the window again.
+            if (caught != null) letGo(if (args.firstOrNull() == false) "the gesture gave the window back to the app" else "the gesture took the window home")
         }
         hooks.replaceArguments(lookup.method(LauncherSymbols.surfaceMatrix)) { properties, args ->
             val window = caught ?: return@replaceArguments args
-            if (properties?.let(surfaceOf::get) !== surface || surface == null) return@replaceArguments args
+            val written = properties?.let(surfaceOf::get)
+            if (framesTraced < TRACED_FRAMES && surface != null) {
+                framesTraced++
+                trace.write("  catch: host sets a matrix on ${if (written === surface) "the caught" else "another (${written?.let(System::identityHashCode)})"} surface")
+            }
+            if (written !== surface || surface == null) return@replaceArguments args
+            hostWroteAt = SystemClock.uptimeMillis()
             val matrix = args.firstOrNull() as? Matrix ?: return@replaceArguments args
             val values = FloatArray(MATRIX_VALUES).also(matrix::getValues)
             hostScale = values[Matrix.MSCALE_X]
@@ -125,6 +140,31 @@ internal class CatchByGesture(
         }
     }
 
+    /**
+     * Each frame while a window is caught: where Pixel Launcher sets no place
+     * on the gesture's surface, as between the shell taking the window and the
+     * gesture's first move, the springs set it, so the window never stands at
+     * the full screen the shell would show.
+     */
+    private fun hold(window: MovingWindow) {
+        if (caught !== window) return
+        if ((surface as? android.view.SurfaceControl)?.isValid == false) {
+            letGo("the gesture's surface is gone")
+            return
+        }
+        if (SystemClock.uptimeMillis() - hostWroteAt > HOST_QUIET_MS) {
+            val now = window.step()
+            fit = now
+            if (runCatching { SurfacePlacer.place(surface, now) }.getOrDefault(false) && framesTraced < TRACED_FRAMES) {
+                framesTraced++
+                trace.write("  catch: held the window at ${now.scale}")
+            }
+        }
+        choreographer.postFrameCallback { hold(window) }
+    }
+
+    private val main = Handler(Looper.getMainLooper())
+
     private fun catch(window: MovingWindow) {
         caught = window
         surface = null
@@ -146,6 +186,12 @@ internal class CatchByGesture(
 
     private companion object {
         const val MATRIX_VALUES = 9
+
+        /** How long Pixel Launcher must have set nothing on the caught surface before the springs set it. */
+        const val HOST_QUIET_MS = 24L
+
+        /** How many of a catch's frames are written to the trace. */
+        const val TRACED_FRAMES = 8
 
         /** How close, in pixels, the window must be to where the gesture puts it before the gesture's own places stand. */
         const val CAUGHT_UP_PX = 1.5f
