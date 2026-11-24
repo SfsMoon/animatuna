@@ -110,10 +110,12 @@ internal class CatchByGesture(
     @Volatile private var reverseSettled = false
     private val finishing = ThreadLocal<Boolean>()
 
-    /** The touch Pixel Launcher's gesture input sees now, and the end of the flight it would make, held until the touch is known. */
+    /** A call Pixel Launcher makes to end the flight, held. */
+    private class Held(val method: java.lang.reflect.Method, val target: Any?, val args: List<Any?>)
+
+    /** The touch Pixel Launcher's gesture input sees now, and the calls ending the flight it would make, held until the touch is known. */
     private val touch = ThreadLocal<Int>()
-    @Volatile private var heldEnd: Pair<Any?, List<Any?>>? = null
-    private lateinit var endWindowAnim: java.lang.reflect.Method
+    private val held = java.util.concurrent.CopyOnWriteArrayList<Held>()
     private lateinit var finishMethod: java.lang.reflect.Method
     private lateinit var cornerRadiusMethod: java.lang.reflect.Method
     @Volatile private var caughtAt = 0L
@@ -123,7 +125,6 @@ internal class CatchByGesture(
     override fun install(lookup: HostLookup) {
         val surfaceOf = lookup.field(LauncherSymbols.surfaceOf)
         finishMethod = lookup.method(LauncherSymbols.finishRecents)
-        endWindowAnim = lookup.method(LauncherSymbols.endRunningWindowAnim)
         hooks.around(lookup.method(LauncherSymbols.inputConsumerMotion)) { _, args, proceed ->
             val action = (args.firstOrNull() as? android.view.MotionEvent)?.actionMasked
             touch.set(action)
@@ -132,19 +133,23 @@ internal class CatchByGesture(
             } finally {
                 touch.remove()
                 // Once the touch is over, a tap on the flying app's icon has been taken by now; anything else ends the flight as Pixel Launcher would have.
-                if ((action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) && heldEnd != null) {
+                if ((action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) && held.isNotEmpty()) {
                     main.postDelayed({ releaseHeldEnd("the touch was no tap on its icon") }, TAP_SETTLE_MS)
                 }
             }
         }
-        hooks.around(endWindowAnim) { handler, args, proceed ->
-            // As ColorOS marks a touch on the flying window "maybe reverse", a touch landing mid-flight does not end it yet.
-            if (touch.get() == android.view.MotionEvent.ACTION_DOWN && flight != null && !cutShort && !reversing && tuning.read().springLaunch) {
-                heldEnd = handler to args
-                trace.write("  reverse: a touch lands ${(flown * PERCENT).toInt()}% of the way home; the flight goes on until it is known to be a tap")
-                null
-            } else {
-                proceed()
+        // As ColorOS marks a touch on the flying window "maybe reverse", a touch landing mid-flight does not end it yet:
+        // neither the gesture's handler nor the flying icon's touch listener ends it until the touch is known.
+        listOf(LauncherSymbols.endRunningWindowAnim, LauncherSymbols.floatingIconTouchClose).forEach { member ->
+            val method = lookup.method(member)
+            hooks.around(method) { target, args, proceed ->
+                if (touch.get() == android.view.MotionEvent.ACTION_DOWN && flight != null && !cutShort && !reversing && tuning.read().springLaunch) {
+                    if (held.isEmpty()) trace.write("  reverse: a touch lands ${(flown * PERCENT).toInt()}% of the way home; the flight goes on until it is known to be a tap")
+                    held.add(Held(method, target, args))
+                    null
+                } else {
+                    proceed()
+                }
             }
         }
         cornerRadiusMethod = lookup.method(LauncherSymbols.windowCornerRadius)
@@ -459,7 +464,7 @@ internal class CatchByGesture(
             keepSpeedOf(window.spring)
         }
         val back = MovingWindow(window.task, window.screen, window.durationFactor, springs).also { it.use(Motion.LAUNCH) }
-        heldEnd = null
+        held.clear()
         trace.write("  reverse: tapped ${(flown * PERCENT).toInt()}% of the way home, the window turns back to its app")
         caught = back
         flight = null
@@ -510,15 +515,18 @@ internal class CatchByGesture(
 
     /** Ends the flight as Pixel Launcher would have at the touch, the touch having turned out to be no tap on its icon. */
     private fun releaseHeldEnd(why: String) {
-        val (handler, args) = heldEnd ?: return
-        heldEnd = null
+        if (held.isEmpty()) return
+        val calls = held.toList()
+        held.clear()
         trace.write("  reverse: $why; the flight ends as the launcher would have")
-        runCatching { endWindowAnim.invoke(handler, *args.toTypedArray()) }.onFailure { trace.write("  reverse: could not end the flight: $it") }
+        calls.forEach { call ->
+            runCatching { call.method.invoke(call.target, *call.args.toTypedArray()) }.onFailure { trace.write("  reverse: could not end the flight: $it") }
+        }
     }
 
     private fun letGo(why: String) {
         caught = null
-        heldEnd = null
+        held.clear()
         reversing = false
         reverseSettled = false
         pendingFinish = null

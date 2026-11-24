@@ -101,6 +101,13 @@ object LauncherSymbols {
      * reaches the home screen.
      */
     val endRunningWindowAnim = Member("com.android.quickstep.AbsSwipeUpHandler", "endRunningWindowAnim", "boolean")
+
+    /**
+     * The flying icon's touch listener closing it on any touch
+     * (`FloatingIconView`'s close action, `fastFinish`), which ends the
+     * flight too: the second thing a touch landing mid-flight does.
+     */
+    val floatingIconTouchClose = Member("com.android.launcher3.views.ListenerView", "handleClose", "boolean")
     val inputConsumerMotion = Member("com.android.quickstep.util.InputConsumerProxy", "onInputConsumerMotionEvent", "android.view.MotionEvent")
 
     /** A tap on an app's icon starting the app: (the icon, its intent, its item). */
@@ -123,7 +130,7 @@ object LauncherSymbols {
 
     val all: List<Member> = traced + listOf(
         appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
-        surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely, endRunningWindowAnim, inputConsumerMotion,
+        surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely, endRunningWindowAnim, floatingIconTouchClose, inputConsumerMotion,
     )
 }
 

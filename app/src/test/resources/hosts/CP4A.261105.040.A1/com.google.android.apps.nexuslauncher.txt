@@ -582,3 +582,5 @@ class com.android.quickstep.AbsSwipeUpHandler
   method endRunningWindowAnim(boolean)
 class com.android.quickstep.util.InputConsumerProxy
   method onInputConsumerMotionEvent(android.view.MotionEvent)
+class com.android.launcher3.views.ListenerView
+  method handleClose(boolean)

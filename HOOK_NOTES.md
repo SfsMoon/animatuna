@@ -308,6 +308,15 @@ Only the window's place, each frame, comes from this module's springs.
   app's icon then turns it back (`reverseToApp` drops the held end). Any
   other touch: 48 ms after its `ACTION_UP` or `ACTION_CANCEL`, the held
   `endRunningWindowAnim` is called as Pixel Launcher would have.
+- vc26 on the device (24 Nov): the touch down was held
+  (`reverse: a touch lands …`), but the flight still ended 1 ms later, from a
+  second place on the same touch: the flying icon's touch listener
+  (`BaseDragLayer.onInterceptTouchEvent` -> `ListenerView.onControllerInterceptTouchEvent`
+  -> `ListenerView.handleClose` -> `FloatingIconView.fastFinish` ->
+  `RectFSpringAnim.end`), reached through `LauncherInputConsumer.onMotionEvent`
+  from the same `onInputConsumerMotionEvent`. vc27 holds
+  `ListenerView.handleClose(boolean)` the same way; every held call is made
+  in order when the touch turns out to be no tap on the app's icon.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.
