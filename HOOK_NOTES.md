@@ -378,6 +378,17 @@ Only the window's place, each frame, comes from this module's springs.
     target carries none, and traces both names on a refusal.
   - Pixel Launcher calls `setWillFinishToHome(true)` on every frame of the
     turn back; held to false each time, traced once.
+- vc32 on the device (24 Nov): no more tearing, every tap taken, and every
+  finish `returning to app`. But 90 to 270 ms after each, the launcher itself
+  started HOME (`START u0 {… cat=[HOME]} … from uid … nexuslauncher
+  (sr=<launcher activity>) … result code=2`), sending the app back. The
+  gesture's end target was still `HOME`; ColorOS sets it to `LAST_TASK`
+  (`mGestureState.setEndTarget(GestureEndTarget.LAST_TASK, false)` in
+  `tryReverseRecentAnim`). vc33 does the same on Pixel Launcher
+  (`SwipeUpAnimationLogic.mGestureState`, `GestureState.setEndTarget(GestureEndTarget, boolean)`),
+  and, as a safety net that traces its callers, holds a HOME start from the
+  launcher's own activity (`Activity.startActivityForResult`, the funnel of
+  its starts) within 600 ms after a turn back ended in the app.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

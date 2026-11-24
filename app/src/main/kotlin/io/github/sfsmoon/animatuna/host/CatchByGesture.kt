@@ -1,5 +1,7 @@
 package io.github.sfsmoon.animatuna.host
 
+import android.animation.ValueAnimator
+import android.content.Context
 import android.content.Intent
 import android.graphics.Matrix
 import android.graphics.Rect
@@ -7,8 +9,6 @@ import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.animation.ValueAnimator
-import android.content.Context
 import android.provider.Settings
 import android.view.Choreographer
 
@@ -125,6 +125,12 @@ internal class CatchByGesture(
     private var controllerOf: java.lang.reflect.Field? = null
     private var destroyInput: java.lang.reflect.Method? = null
     private var willFinishHome: java.lang.reflect.Method? = null
+    private var gestureStateOf: java.lang.reflect.Field? = null
+    private var setEndTarget: java.lang.reflect.Method? = null
+    private var endTargetApp: Any? = null
+
+    /** Until when a home start from the launcher is the gesture going home after it turned back to the app. */
+    @Volatile private var homeStaleUntil = 0L
     private lateinit var cornerRadiusMethod: java.lang.reflect.Method
     @Volatile private var caughtAt = 0L
     private var framesTraced = 0
@@ -137,6 +143,19 @@ internal class CatchByGesture(
         controllerOf = runCatching { lookup.field(LauncherSymbols.gestureController) }.getOrNull()
         destroyInput = runCatching { lookup.method(LauncherSymbols.destroyInputConsumer) }.getOrNull()
         willFinishHome = runCatching { lookup.method(LauncherSymbols.willFinishToHome) }.getOrNull()
+        gestureStateOf = runCatching { lookup.field(LauncherSymbols.gestureStateOf) }.getOrNull()
+        setEndTarget = runCatching { lookup.method(LauncherSymbols.setEndTarget) }.getOrNull()
+        endTargetApp = runCatching { lookup.enumConstant(LauncherSymbols.END_TARGET, LauncherSymbols.END_TARGET_APP) }.getOrNull()
+        hooks.around(android.app.Activity::class.java.getMethod("startActivityForResult", Intent::class.java, Int::class.javaPrimitiveType, android.os.Bundle::class.java)) { _, args, proceed ->
+            // Safety net: the launcher sending itself home right after a window turned back would undo the turn.
+            val intent = args.firstOrNull() as? Intent
+            if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && SystemClock.uptimeMillis() < homeStaleUntil) {
+                trace.write("  reverse: the launcher goes home again after the turn back, held, by ${Callers.here(CUT_CALLERS)}")
+                null
+            } else {
+                proceed()
+            }
+        }
         willFinishHome?.let { method ->
             // The shell finishes "to the app" home all the same while it still expects home
             // (`finishInner: toHome=false … willFinishToHome=true`): while a window turns back, it never expects home again.
@@ -519,7 +538,10 @@ internal class CatchByGesture(
             .onFailure { trace.write("  reverse: could not give touches back to the app: $it") }.getOrNull()
         val controller = runCatching { controllerOf?.get(handler)?.also { willFinishHome?.invoke(it, false) } }
             .onFailure { trace.write("  reverse: could not tell the shell the gesture ends in the app: $it") }.getOrNull()
-        trace.write("  reverse: gesture input ${if (input != null) "destroyed" else "not found"}, shell ${if (controller != null) "told it ends in the app" else "not reached"}")
+        // As ColorOS: `mGestureState.setEndTarget(LAST_TASK, false)`.
+        val ends = runCatching { gestureStateOf?.get(handler)?.also { setEndTarget?.invoke(it, endTargetApp, false) } }
+            .onFailure { trace.write("  reverse: could not set the gesture's end to the app: $it") }.getOrNull()
+        trace.write("  reverse: gesture input ${if (input != null) "destroyed" else "not found"}, shell ${if (controller != null) "told it ends in the app" else "not reached"}, end target ${if (ends != null && endTargetApp != null) "the app" else "left"}")
     }
 
     /** Each frame of a window turning back to its app: sets its place where Pixel Launcher no longer does, until it has settled. */
@@ -559,6 +581,7 @@ internal class CatchByGesture(
         } finally {
             finishing.remove()
         }
+        homeStaleUntil = SystemClock.uptimeMillis() + HOME_STALE_MS
         letGo("the window turned back into its app")
         main.postDelayed({ traceTopTask("after the reverse") }, TOP_CHECK_MS)
     }
@@ -622,6 +645,9 @@ internal class CatchByGesture(
 
         /** How long after a touch ends its click has surely reached the icon, should the touch be a tap. */
         const val TAP_SETTLE_MS = 48L
+
+        /** How long after a turn back a home start from the launcher is taken as the gesture's own, gone stale. */
+        const val HOME_STALE_MS = 600L
 
         /** How many of the system's running tasks are looked through for a flying window's app. */
         const val RUNNING_TASKS = 8

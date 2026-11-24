@@ -591,3 +591,7 @@ class com.android.quickstep.util.InputConsumerProxy
   method destroy()
 class com.android.quickstep.RecentsAnimationController
   method setWillFinishToHome(boolean)
+class com.android.quickstep.SwipeUpAnimationLogic
+  field mGestureState
+class com.android.quickstep.GestureState
+  method setEndTarget(com.android.quickstep.GestureState$GestureEndTarget,boolean)

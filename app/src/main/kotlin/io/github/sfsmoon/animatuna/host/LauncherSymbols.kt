@@ -117,6 +117,20 @@ object LauncherSymbols {
     val destroyInputConsumer = Member("com.android.quickstep.util.InputConsumerProxy", "destroy")
     val willFinishToHome = Member(RECENTS_CONTROLLER, "setWillFinishToHome", "boolean")
 
+    /**
+     * Where the gesture ends, as its handler and the launcher go by it after
+     * the gesture: ColorOS sets it to the app (`LAST_TASK`) as a window turns
+     * back, and Pixel Launcher, left at `HOME`, sends the launcher home again
+     * after the shell has returned to the app.
+     */
+    val gestureStateOf = HostField("com.android.quickstep.SwipeUpAnimationLogic", "mGestureState")
+    val setEndTarget = Member(
+        "com.android.quickstep.GestureState", "setEndTarget",
+        "com.android.quickstep.GestureState\$GestureEndTarget", "boolean",
+    )
+    const val END_TARGET = "com.android.quickstep.GestureState\$GestureEndTarget"
+    const val END_TARGET_APP = "LAST_TASK"
+
     /** A tap on an app's icon starting the app: (the icon, its intent, its item). */
     val startActivitySafely = Member(
         "com.android.launcher3.uioverrides.QuickstepLauncher", "startActivitySafely",
@@ -133,12 +147,12 @@ object LauncherSymbols {
         launchRunnerCancelled,
     )
 
-    val fields: List<HostField> = listOf(surfaceOf, homeSpringStartRect, homeSpringProgress, gestureInputConsumer, gestureController)
+    val fields: List<HostField> = listOf(surfaceOf, homeSpringStartRect, homeSpringProgress, gestureInputConsumer, gestureController, gestureStateOf)
 
     val all: List<Member> = traced + listOf(
         appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
         surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely, endRunningWindowAnim, floatingIconTouchClose, inputConsumerMotion,
-        destroyInputConsumer, willFinishToHome,
+        destroyInputConsumer, willFinishToHome, setEndTarget,
     )
 }
 

@@ -18,6 +18,10 @@ class HostLookup(private val classLoader: ClassLoader) {
         return find(member) as Constructor<*>
     }
 
+    /** The constant [name] of the enum [className]. */
+    fun enumConstant(className: String, name: String): Any =
+        type(className).enumConstants?.firstOrNull { (it as Enum<*>).name == name } ?: error("No $name in $className")
+
     fun field(field: HostField): Field = type(field.className).getDeclaredField(field.name).apply { isAccessible = true }
 
     private fun find(member: Member): Executable {
