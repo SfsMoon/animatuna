@@ -497,10 +497,11 @@ internal class CatchByGesture(
      */
     private fun undoGoingHome() {
         val handler = gestureHandler ?: return trace.write("  reverse: no gesture handler seen, its input left as it is")
-        runCatching { inputConsumerOf?.get(handler)?.let { destroyInput?.invoke(it) } }
-            .onFailure { trace.write("  reverse: could not give touches back to the app: $it") }
-        runCatching { controllerOf?.get(handler)?.let { willFinishHome?.invoke(it, false) } }
-            .onFailure { trace.write("  reverse: could not tell the shell the gesture ends in the app: $it") }
+        val input = runCatching { inputConsumerOf?.get(handler)?.also { destroyInput?.invoke(it) } }
+            .onFailure { trace.write("  reverse: could not give touches back to the app: $it") }.getOrNull()
+        val controller = runCatching { controllerOf?.get(handler)?.also { willFinishHome?.invoke(it, false) } }
+            .onFailure { trace.write("  reverse: could not tell the shell the gesture ends in the app: $it") }.getOrNull()
+        trace.write("  reverse: gesture input ${if (input != null) "destroyed" else "not found"}, shell ${if (controller != null) "told it ends in the app" else "not reached"}")
     }
 
     /** Each frame of a window turning back to its app: sets its place where Pixel Launcher no longer does, until it has settled. */
@@ -538,6 +539,18 @@ internal class CatchByGesture(
             finishing.remove()
         }
         letGo("the window turned back into its app")
+        main.postDelayed({ traceTopTask("after the reverse") }, TOP_CHECK_MS)
+    }
+
+    /** Which task the system has on top now, and whether the launcher has the focus: what a reverse must leave as the app. */
+    private fun traceTopTask(`when`: String) {
+        val context = launch.context ?: return
+        runCatching {
+            val manager = context.getSystemService(android.app.ActivityManager::class.java)
+            @Suppress("DEPRECATION")
+            val top = manager.getRunningTasks(1).firstOrNull()
+            trace.write("  check $`when`: top task ${top?.taskId} ${top?.topActivity?.flattenToShortString()}")
+        }.onFailure { trace.write("  check $`when`: $it") }
     }
 
     /** Ends the flight as Pixel Launcher would have at the touch, the touch having turned out to be no tap on its icon. */
@@ -581,6 +594,9 @@ internal class CatchByGesture(
 
         /** How long after a touch ends its click has surely reached the icon, should the touch be a tap. */
         const val TAP_SETTLE_MS = 48L
+
+        /** How long after a reverse the system's top task is looked at. */
+        const val TOP_CHECK_MS = 250L
 
         /** The longest a window turns back before the gesture must have ended. */
         const val REVERSE_LONGEST_MS = 1500L

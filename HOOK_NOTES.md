@@ -333,6 +333,13 @@ Only the window's place, each frame, comes from this module's springs.
     and the held finish was replaced by it, so the swipe handler's own end
     (`AbsSwipeUpHandler$$ExternalSyntheticLambda0`) never ran. vc28 keeps the
     first.
+- vc28 on the device (24 Nov): not fixed. After each reverse a tap still
+  reached the launcher's icons 200 to 600 ms later, with no gesture between,
+  and the user's swipes on the app started no recents animation: the app's
+  surface shows, but the app seems not to be on top again after
+  `finishController(false, …)`. vc29 traces what the reverse did to the
+  gesture's input and the shell, and the system's top task 250 ms after it
+  (`ActivityManager.getRunningTasks(1)`), to tell which.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.
