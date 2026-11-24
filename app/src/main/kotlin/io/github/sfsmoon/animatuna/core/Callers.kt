@@ -8,8 +8,8 @@ object Callers {
     /** Frames from the animation framework, reflection, this module and the hook framework, which say nothing of the host. */
     private val NOT_HOST = listOf("android.animation.", "java.lang.reflect.", "io.github.sfsmoon.", "io.github.libxposed.", "org.matrix.", "org.lsposed.", "de.robv.")
 
-    fun here(): String = Throwable().stackTrace
+    fun here(frames: Int = FRAMES): String = Throwable().stackTrace
         .filter { frame -> NOT_HOST.none { frame.className.startsWith(it) } }
-        .take(FRAMES)
+        .take(frames)
         .joinToString(" < ") { "${it.className.substringAfterLast('.')}.${it.methodName}" }
 }

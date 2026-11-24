@@ -27,12 +27,13 @@ internal object SurfacePlacer {
         SurfaceControl.Transaction::class.java.getMethod("setCornerRadius", SurfaceControl::class.java, Float::class.javaPrimitiveType)
     }.getOrNull()
 
-    /** Shows [surface] as [fit] says, now; false where it cannot. */
-    fun place(surface: Any?, fit: WindowFit): Boolean {
+    /** Shows [surface] as [fit] says, now, at [alpha] if given; false where it cannot. */
+    fun place(surface: Any?, fit: WindowFit, alpha: Float? = null): Boolean {
         val control = surface as? SurfaceControl ?: return false
         if (!control.isValid) return false
         SurfaceControl.Transaction().use { transaction ->
             if (!put(transaction, control, fit)) return false
+            alpha?.let { transaction.setAlpha(control, it) }
             transaction.apply()
         }
         return true

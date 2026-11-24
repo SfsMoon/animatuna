@@ -20,7 +20,8 @@
   whole gesture.
 - Tapping an app's icon while its window flies home now opens it from the
   window, rather than snapping the window into the icon first.
-- While the system hides a window between a tap and its launch, a picture
-  of it keeps flying in its place, so the window no longer blinks out.
+- Tapping an app's icon while its window flies home turns the window back
+  to the app on the same springs, as ColorOS does, instead of launching the
+  app anew.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

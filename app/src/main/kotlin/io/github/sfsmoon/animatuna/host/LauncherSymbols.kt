@@ -93,12 +93,11 @@ object LauncherSymbols {
     val surfaceAlpha = Member(SURFACE, "setAlpha", "float")
     val surfaceOf = HostField(SURFACE, "mSurface")
 
-    private const val AM_WRAPPER = "com.android.systemui.shared.system.ActivityManagerWrapper"
-
-    // A picture of an app's window as it shows now, as Pixel Launcher's recents take one.
-    val activityManagerWrapper = Member(AM_WRAPPER, "getInstance")
-    val takeTaskThumbnail = Member(AM_WRAPPER, "takeTaskThumbnail", "int")
-    val thumbnailBitmap = Member("com.android.systemui.shared.recents.model.ThumbnailData", "getThumbnail")
+    /** A tap on an app's icon starting the app: (the icon, its intent, its item). */
+    val startActivitySafely = Member(
+        "com.android.launcher3.uioverrides.QuickstepLauncher", "startActivitySafely",
+        "android.view.View", "android.content.Intent", "com.android.launcher3.model.data.ItemInfo",
+    )
 
     /** The shell taking a launch's windows for a transition that came in on it, a gesture's among them. */
     val launchRunnerCancelled = Member("com.android.launcher3.LauncherAnimationRunner", "onAnimationCancelled")
@@ -114,7 +113,7 @@ object LauncherSymbols {
 
     val all: List<Member> = traced + listOf(
         appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
-        surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, activityManagerWrapper, takeTaskThumbnail, thumbnailBitmap,
+        surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely,
     )
 }
 

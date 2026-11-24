@@ -259,19 +259,40 @@ Only the window's place, each frame, comes from this module's springs.
   12 to 16 ms later, and the launch of the tapped app starts 85 to 125 ms
   after that, with the window hidden in between. `taken before its first
   frame` was seen once and worked.
-- vc24 fills that gap as ColorOS keeps the window moving through it:
-  - As each flight starts, a picture of the window is taken off the main
-    thread (`ActivityManagerWrapper.getInstance().takeTaskThumbnail(task)`,
-    `ThumbnailData.getThumbnail()`).
-  - When a flight is cut, the window's springs carry on from where it shows
-    (pulled frame included), and `GhostWindow` draws the picture there, in
-    the home screen's root view overlay (the floating icon's root), cropped
-    around its centre, rounded and faded as the window would be.
-  - A launch of the same task within 1 s takes the springs from where the
-    picture is, with its speed if it was still moving, and the picture is
-    removed a frame later. Otherwise it flies into its icon, or is removed
-    after 800 ms.
-  - The first trace line now names the module build.
+- vc24 tried filling that gap with a picture of the window
+  (`ActivityManagerWrapper.takeTaskThumbnail`) drawn in the home screen's
+  overlay. It was never run on the device: the owner asked to follow
+  ColorOS instead, and vc25 removed it. The first trace line names the
+  module build since vc24.
+- What ColorOS does (OplusLauncher, jadx): it never launches the app again.
+  While the window flies home, its flying icon layer takes touches
+  (`OplusLauncherSwipeHandlerV2Impl`'s home animation factory:
+  `IconHolder.setOnTouchListener` marks `setMaybeReverseGestureAnimation` on
+  down, `setOnClickListener` calls `tryReverseRecentAnim`). That turns the
+  same `CustomRectFSpringAnim` back to the full window
+  (`reverseToOpen`: start rect = current rect, target = the task's full
+  bounds, alpha back to 1, `AnimType.REVERSE_TO_OPEN_REMOTE` springs), sets
+  the gesture's end target to `LAST_TASK`, and plays the home screen's
+  content animation backwards; the recents animation then ends in the app.
+  A tap on a workspace icon instead connects the new launch to the running
+  flight (`AnimationRecord.tryConnectExistingAnim` -> `copyNextAnimState`),
+  which needs ColorOS's shell interrupt.
+- vc25 does the first on Pixel Launcher:
+  - `QuickstepLauncher.startActivitySafely(View, Intent, ItemInfo)`, around:
+    a tap on the app whose window flies home (by package, from the gesture
+    target's `taskInfo`) is spent there; `CatchByGesture.reverseToApp`
+    retargets the springs, from where the window shows and at its speed, to
+    the task's full bounds and corner on `Motion.LAUNCH`.
+  - While it turns back: the window's alpha is 1, the floating icon's alpha
+    0, the launcher's frames on the surface are only overwritten, and once
+    the launcher stops writing, the springs place the window themselves.
+  - `finishController(true)` from the launcher's flight is held, and called
+    again with `toHome` and `sendUserLeaveHint` false once the springs settle:
+    the gesture ends back in the app, as `LAST_TASK`. Should none come in
+    1.5 s, the catch lets go.
+  - Every tap during a flight traces whether it was taken. A cut flight
+    traces 20 callers, to show whether Pixel Launcher cuts it at the touch
+    down (then the tap finds nothing left to turn back) or at the click.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

@@ -11,6 +11,7 @@ import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.XposedHooks
 import io.github.sfsmoon.animatuna.host.BreakFrameInShell
 import io.github.sfsmoon.animatuna.host.CatchByGesture
+import io.github.sfsmoon.animatuna.host.ReverseOnTap
 import io.github.sfsmoon.animatuna.host.DiagnosticTrace
 import io.github.sfsmoon.animatuna.host.HomeGestureSpring
 import io.github.sfsmoon.animatuna.host.HostLookup
@@ -64,10 +65,12 @@ class AnimatunaModule : XposedModule() {
     private fun launcherPatches(hooks: XposedHooks, trace: TraceFile): Map<String, HostPatch> {
         val tuning = TuningStore(runCatching { getRemotePreferences(TuningStore.GROUP) }.getOrNull())
         val launch = SpringLaunch(hooks, tuning, trace)
+        val flights = CatchByGesture(hooks, tuning, launch, trace)
         return mapOf(
             "diagnostic trace" to DiagnosticTrace(hooks, trace),
             "spring launch" to launch,
-            "the gesture: catching an opening app, flying home on springs" to CatchByGesture(hooks, tuning, launch, trace),
+            "the gesture: catching an opening app, flying home on springs" to flights,
+            "a tap turning a window back to its app" to ReverseOnTap(hooks, flights),
             "window animation speed" to WindowAnimationSpeed(hooks, tuning),
             "home gesture spring" to HomeGestureSpring(hooks, tuning),
         )

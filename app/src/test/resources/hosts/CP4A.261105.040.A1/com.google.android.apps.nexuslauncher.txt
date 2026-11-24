@@ -576,8 +576,5 @@ class com.android.quickstep.BaseActivityInterface$DefaultAnimationFactory
   method isRecentsAttachedToAppWindow()
   method onAttachedToWindowStateUpdated(boolean)
   method setEndTarget(com.android.quickstep.GestureState$GestureEndTarget)
-class com.android.systemui.shared.system.ActivityManagerWrapper
-  method getInstance()
-  method takeTaskThumbnail(int)
-class com.android.systemui.shared.recents.model.ThumbnailData
-  method getThumbnail()
+class com.android.launcher3.uioverrides.QuickstepLauncher
+  method startActivitySafely(android.view.View,android.content.Intent,com.android.launcher3.model.data.ItemInfo)
