@@ -351,6 +351,19 @@ Only the window's place, each frame, comes from this module's springs.
   false again on the finishing controller just before the finish. (The
   launcher trace for that run still came from an older build, so whether
   vc28's own call reached the shell is not known.)
+- vc30 on the device (24 Nov): the shell now returned to the app
+  (`finishInner: toHome=false … willFinishToHome=false`, `returning to app`,
+  `reorder task#10075 to top`). Still, about 200 ms before each such finish
+  the launcher sent a HOME intent (`START u0 {… cat=[HOME]} … result code=3`),
+  and once 60 ms after one (`result code=2`), which put the home screen back
+  on top. While the window turns back (650 to 700 ms to settle) the gesture
+  is still running and the system has the home screen on top, so the user's
+  next swipe was taken as a swipe on home. vc31:
+  - ends the gesture in the app as soon as the window is within 8 px of its
+    full bounds, not once every spring has settled;
+  - ends it at once when a new gesture starts during the turn back
+    (`AbsSwipeUpHandler.onConsumerAboutToBeSwitched`, before it runs), so the
+    swipe starts from the app.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

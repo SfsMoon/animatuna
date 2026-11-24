@@ -136,6 +136,16 @@ internal class CatchByGesture(
         controllerOf = runCatching { lookup.field(LauncherSymbols.gestureController) }.getOrNull()
         destroyInput = runCatching { lookup.method(LauncherSymbols.destroyInputConsumer) }.getOrNull()
         willFinishHome = runCatching { lookup.method(LauncherSymbols.willFinishToHome) }.getOrNull()
+        hooks.around(lookup.method(LauncherSymbols.newGestureStarts)) { _, _, proceed ->
+            // A swipe while the window turns back: the gesture ends in the app now, so the swipe starts from the app,
+            // not from the home screen the system would otherwise still have on top (and send home).
+            if (reversing) {
+                trace.write("  reverse: a new gesture starts; the window is handed to its app now")
+                reverseSettled = true
+                finishReverseIfReady()
+            }
+            proceed()
+        }
         willFinishHome?.let { method ->
             // The shell finishes "to the app" home all the same while it still expects home
             // (`finishInner: toHome=false … willFinishToHome=true`): while a window turns back, it never expects home again.
@@ -524,7 +534,8 @@ internal class CatchByGesture(
             fit = now
             runCatching { SurfacePlacer.place(surface, now, alpha = 1f) }
         }
-        if (window.spring.settled) {
+        // Whole to the eye is enough: every frame more is one in which the system still has the home screen on top.
+        if (window.spring.settled || window.spring.near(WHOLE_PX)) {
             reverseSettled = true
             trace.write("  reverse: the window is whole")
             finishReverseIfReady()
@@ -608,6 +619,9 @@ internal class CatchByGesture(
 
         /** How long after a touch ends its click has surely reached the icon, should the touch be a tap. */
         const val TAP_SETTLE_MS = 48L
+
+        /** How close, in pixels, a window turning back must be to its full bounds for the gesture to end in the app. */
+        const val WHOLE_PX = 8f
 
         /** How long after a reverse the system's top task is looked at. */
         const val TOP_CHECK_MS = 250L

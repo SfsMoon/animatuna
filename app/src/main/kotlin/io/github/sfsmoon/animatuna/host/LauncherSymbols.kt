@@ -117,6 +117,9 @@ object LauncherSymbols {
     val destroyInputConsumer = Member("com.android.quickstep.util.InputConsumerProxy", "destroy")
     val willFinishToHome = Member(RECENTS_CONTROLLER, "setWillFinishToHome", "boolean")
 
+    /** A new gesture starting while this one's handler still runs: what a swipe during a window's turn back does. */
+    val newGestureStarts = Member("com.android.quickstep.AbsSwipeUpHandler", "onConsumerAboutToBeSwitched")
+
     /** A tap on an app's icon starting the app: (the icon, its intent, its item). */
     val startActivitySafely = Member(
         "com.android.launcher3.uioverrides.QuickstepLauncher", "startActivitySafely",
@@ -138,7 +141,7 @@ object LauncherSymbols {
     val all: List<Member> = traced + listOf(
         appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
         surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely, endRunningWindowAnim, floatingIconTouchClose, inputConsumerMotion,
-        destroyInputConsumer, willFinishToHome,
+        destroyInputConsumer, willFinishToHome, newGestureStarts,
     )
 }
 
