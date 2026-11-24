@@ -340,6 +340,17 @@ Only the window's place, each frame, comes from this module's springs.
   `finishController(false, …)`. vc29 traces what the reverse did to the
   gesture's input and the shell, and the system's top task 250 ms after it
   (`ActivityManager.getRunningTasks(1)`), to tell which.
+- The shell's own log on the device (24 Nov, `ShellRecents`, `wm_*` events)
+  named the cause. Each reverse's finish arrived as
+  `RecentsController.finishInner: toHome=false userLeave=false willFinishToHome=true … Non-transition affecting wct`,
+  and 2 ms later the app was paused `makeInvisible` and the launcher took
+  the top again. An ordinary return to the app finishes with
+  `willFinishToHome=false`. The shell still expected home, set by Pixel
+  Launcher as the gesture settled home (`setWillFinishToHome(true)`). vc30
+  holds `setWillFinishToHome` to false while a window turns back, and says
+  false again on the finishing controller just before the finish. (The
+  launcher trace for that run still came from an older build, so whether
+  vc28's own call reached the shell is not known.)
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

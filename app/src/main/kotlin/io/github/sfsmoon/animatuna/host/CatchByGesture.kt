@@ -136,6 +136,18 @@ internal class CatchByGesture(
         controllerOf = runCatching { lookup.field(LauncherSymbols.gestureController) }.getOrNull()
         destroyInput = runCatching { lookup.method(LauncherSymbols.destroyInputConsumer) }.getOrNull()
         willFinishHome = runCatching { lookup.method(LauncherSymbols.willFinishToHome) }.getOrNull()
+        willFinishHome?.let { method ->
+            // The shell finishes "to the app" home all the same while it still expects home
+            // (`finishInner: toHome=false … willFinishToHome=true`): while a window turns back, it never expects home again.
+            hooks.replaceArguments(method) { _, args ->
+                if (reversing && args.firstOrNull() == true) {
+                    trace.write("  reverse: the launcher tells the shell the gesture ends home; it ends in the app")
+                    listOf(false)
+                } else {
+                    args
+                }
+            }
+        }
         hooks.around(lookup.method(LauncherSymbols.inputConsumerMotion)) { _, args, proceed ->
             val action = (args.firstOrNull() as? android.view.MotionEvent)?.actionMasked
             touch.set(action)
@@ -526,6 +538,8 @@ internal class CatchByGesture(
         val (controller, args) = pendingFinish ?: return
         if (!reverseSettled) return
         pendingFinish = null
+        // Said on the same controller, just before it finishes, so the shell has it in the same order.
+        runCatching { willFinishHome?.invoke(controller, false) }.onFailure { trace.write("  reverse: could not tell the shell the gesture ends in the app: $it") }
         val back = args.toMutableList().apply {
             this[0] = false
             this[2] = false
