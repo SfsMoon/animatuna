@@ -77,6 +77,9 @@ object LauncherSymbols {
     /** Where that spring flies the window: the icon's rectangle, on screen. */
     val homeSpringTarget = Member(HOME_SPRING, "getTargetRect")
 
+    /** That spring ended at once, on its target: as Pixel Launcher does when a touch lands on the home screen mid-flight. */
+    val homeSpringEnd = Member(HOME_SPRING, "end")
+
     /** Where that spring takes the window from: its visible rectangle on screen as the finger lets go. */
     val homeSpringStartRect = HostField(HOME_SPRING, "mStartRect")
 
@@ -103,7 +106,7 @@ object LauncherSymbols {
     val fields: List<HostField> = listOf(surfaceOf, homeSpringStartRect, homeSpringProgress)
 
     val all: List<Member> = traced + listOf(
-        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget,
+        appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
         surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha,
     )
 }

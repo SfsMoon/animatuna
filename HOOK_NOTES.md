@@ -211,6 +211,29 @@ Only the window's place, each frame, comes from this module's springs.
     there instead of at the icon, keeping the flight's speed if within 100 ms,
     as ColorOS's `copyNextAnimState` and `inheritVelocity` do.
   - Not known yet: what the screen shows in those 300 ms.
+- vc21 on the device (trace and video, 24 Nov): every gesture home logged
+  `home flight on the springs`, and every flight landed at 100 %. Two things
+  were wrong:
+  - In the video a caught window showed tiny, near the top left, for the whole
+    gesture, while its icon flew big beside it. The break frame was set on the
+    change's own surface. For the launcher the shell wraps that surface in a new
+    leash (`TransitionUtil.newTarget`, with the leash map), reparents it there
+    and sets it back to the wrapper's origin, keeping its scale. So the
+    launcher's place, set on the wrapper, was scaled again by the break frame's
+    0.2 to 0.5, toward the top left. Every catch since vc14 had this, less
+    visibly at larger scales. From vc22 SystemUI sets the break frame on the
+    wrapper: around `RecentsTransitionHandler.startAnimation` it takes the
+    fresh frame; after `newTarget` returns the target for that task, it puts the
+    frame on the target's `leash` in the same start transaction.
+  - Tapping the app's icon while its window flew home never logged `back from
+    its flight home`. The shell does not cancel the gesture then: Pixel Launcher
+    ends its flight at once (`RectFSpringAnim.end()`, flights of 48 to 120 ms
+    against 220 ms and more untouched), then finishes the gesture home, and the
+    launch follows about 90 ms later. The jump of its progress to 1 also pulled
+    the window onto its icon in one frame. From vc22, `end()` on the flight
+    marks it cut short: the window is no longer pulled home, and on
+    `finishController(true)` a window whose springs are under 90 % of the way
+    is handed to `SpringLaunch.returnFrom`, as on a cancel.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

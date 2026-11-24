@@ -16,5 +16,9 @@
   place and the finger's speed, not only a window caught mid-launch.
 - An app opened again while its window flies home opens from where the
   window is, not from its icon.
+- Fixed: a window caught mid-launch showed tiny in the top left corner for the
+  whole gesture.
+- Tapping an app's icon while its window flies home now opens it from the
+  window, rather than snapping the window into the icon first.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

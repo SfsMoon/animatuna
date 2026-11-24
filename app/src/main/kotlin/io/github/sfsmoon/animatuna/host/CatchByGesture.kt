@@ -85,6 +85,9 @@ internal class CatchByGesture(
     @Volatile private var shapeFrom = DEFAULT_SHAPE_FROM
     @Volatile private var flown = 0f
     @Volatile private var hostFlight: Any? = null
+
+    /** Whether Pixel Launcher ended its flight at once, mid-way, as a tap on the home screen does: the window is not pulled home then. */
+    @Volatile private var cutShort = false
     @Volatile private var shown: RectSpring.Frame? = null
 
     /** The app window the gesture moves, whether caught or not: its task, its surface, its full-size bounds. */
@@ -144,6 +147,10 @@ internal class CatchByGesture(
             trace.write("  catch: the gesture took task ${window.task}, surface ${surface?.let(System::identityHashCode)}")
             main.post { hold(window) }
         }
+        hooks.around(lookup.method(LauncherSymbols.homeSpringEnd)) { spring, _, proceed ->
+            if (flying && spring === hostFlight) cutShort = true
+            proceed()
+        }
         hooks.after(lookup.method(LauncherSymbols.recentsCanceled)) { _, _ ->
             val window = caught ?: return@after
             // Cancelled mid-flight, as a tap opening the app again does: its launch starts where the window is.
@@ -155,8 +162,11 @@ internal class CatchByGesture(
             val window = caught ?: return@after
             if (args.firstOrNull() == false) {
                 letGo("the gesture gave the window back to the app")
-            } else if (flying) {
-                letGo("the window has landed home, ${(flown * PERCENT).toInt()}% of the way, the launcher's flight at ${(hostProgress * PERCENT).toInt()}%")
+            } else if (flight != null) {
+                // Ended mid-way, as a tap opening the app again does: should the app open, it opens from where the window is.
+                val springs = flight?.progress(window.spring.frame(), window.spring.target) ?: 1f
+                if (cutShort || springs < LANDED) launch.returnFrom(window.task, shown ?: window.spring.frame(), window.spring)
+                letGo("the gesture ended, the window ${(flown * PERCENT).toInt()}% of the way home, its springs ${(springs * PERCENT).toInt()}%${if (cutShort) ", the launcher's flight cut short" else ""}")
             } else {
                 // Should no flight home be seen, the launcher's own frames, which the springs cannot read, stand.
                 main.postDelayed({ if (caught === window && !flying) letGo("no flight home seen") }, FLIGHT_WAIT_MS)
@@ -168,6 +178,7 @@ internal class CatchByGesture(
         hooks.around(lookup.method(LauncherSymbols.homeSpringStart)) { spring, args, proceed ->
             val window = caught
             hostFlight = spring
+            cutShort = false
             if (window == null && spring != null && tuning.read().springHome) {
                 // Not caught: the springs take the window where Pixel Launcher's flight starts it, at the finger's speed.
                 val app = gestureApp
@@ -254,7 +265,7 @@ internal class CatchByGesture(
             }
             val stepped = window.step()
             val now = flight?.let { home ->
-                hostFlight?.let { hostProgress = runCatching { progressOf.getFloat(it) }.getOrDefault(hostProgress) }
+                if (!cutShort) hostFlight?.let { hostProgress = runCatching { progressOf.getFloat(it) }.getOrDefault(hostProgress) }
                 val drawn = home.shown(window.spring.frame(), window.spring.target, hostProgress)
                 flown = home.progress(drawn, window.spring.target)
                 shown = drawn
@@ -335,6 +346,7 @@ internal class CatchByGesture(
         flight = null
         shown = null
         hostFlight = null
+        cutShort = false
         surface = null
         fit = null
         hostCrop = null
@@ -349,6 +361,9 @@ internal class CatchByGesture(
         const val MATRIX_VALUES = 9
         const val PERCENT = 100
         const val MS_PER_S = 1000f
+
+        /** How far home, by the springs' own place, a window has flown for the flight to count as landed. */
+        const val LANDED = 0.9f
 
         /** A recents animation target's mode for the app the gesture moves away from. */
         const val MODE_CLOSING = 1
