@@ -364,6 +364,20 @@ Only the window's place, each frame, comes from this module's springs.
   - ends it at once when a new gesture starts during the turn back
     (`AbsSwipeUpHandler.onConsumerAboutToBeSwitched`, before it runs), so the
     swipe starts from the app.
+- vc31 on the device (24 Nov): every reverse now left the app on top
+  (`check after the reverse: top task 10075 … dialer`, the shell
+  `returning to app`, no HOME start). But:
+  - `onConsumerAboutToBeSwitched` ran 50 to 110 ms after every tap, with no
+    new gesture: Pixel Launcher switches its input consumer for the tap
+    itself. Ending the turn back there cut it mid-way, and the window leapt
+    whole; the user found it faster and torn. vc32 drops that hook (the
+    8 px end stays).
+  - Every other tap was refused as another app, and the app launched anew
+    the old way. vc32 falls back to the system's running tasks for the
+    flying task's app (`ActivityManager.getRunningTasks`) where the gesture
+    target carries none, and traces both names on a refusal.
+  - Pixel Launcher calls `setWillFinishToHome(true)` on every frame of the
+    turn back; held to false each time, traced once.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

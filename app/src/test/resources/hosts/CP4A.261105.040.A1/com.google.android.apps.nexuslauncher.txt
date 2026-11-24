@@ -591,5 +591,3 @@ class com.android.quickstep.util.InputConsumerProxy
   method destroy()
 class com.android.quickstep.RecentsAnimationController
   method setWillFinishToHome(boolean)
-class com.android.quickstep.AbsSwipeUpHandler
-  method onConsumerAboutToBeSwitched()

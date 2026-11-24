@@ -108,6 +108,7 @@ internal class CatchByGesture(
     @Volatile private var reversing = false
     @Volatile private var pendingFinish: Pair<Any?, List<Any?>>? = null
     @Volatile private var reverseSettled = false
+    @Volatile private var toldHome = false
     private val finishing = ThreadLocal<Boolean>()
 
     /** A call Pixel Launcher makes to end the flight, held. */
@@ -136,22 +137,14 @@ internal class CatchByGesture(
         controllerOf = runCatching { lookup.field(LauncherSymbols.gestureController) }.getOrNull()
         destroyInput = runCatching { lookup.method(LauncherSymbols.destroyInputConsumer) }.getOrNull()
         willFinishHome = runCatching { lookup.method(LauncherSymbols.willFinishToHome) }.getOrNull()
-        hooks.around(lookup.method(LauncherSymbols.newGestureStarts)) { _, _, proceed ->
-            // A swipe while the window turns back: the gesture ends in the app now, so the swipe starts from the app,
-            // not from the home screen the system would otherwise still have on top (and send home).
-            if (reversing) {
-                trace.write("  reverse: a new gesture starts; the window is handed to its app now")
-                reverseSettled = true
-                finishReverseIfReady()
-            }
-            proceed()
-        }
         willFinishHome?.let { method ->
             // The shell finishes "to the app" home all the same while it still expects home
             // (`finishInner: toHome=false … willFinishToHome=true`): while a window turns back, it never expects home again.
             hooks.replaceArguments(method) { _, args ->
                 if (reversing && args.firstOrNull() == true) {
-                    trace.write("  reverse: the launcher tells the shell the gesture ends home; it ends in the app")
+                    // Pixel Launcher says it every frame; one line in the trace is enough.
+                    if (!toldHome) trace.write("  reverse: the launcher keeps telling the shell the gesture ends home; it ends in the app")
+                    toldHome = true
                     listOf(false)
                 } else {
                     args
@@ -480,11 +473,13 @@ internal class CatchByGesture(
             return false
         }
         val tapped = intent?.component?.packageName ?: intent?.`package`
+        // Pixel Launcher's gesture target does not always carry its task's app; the system knows it by the task.
+        val flying = app.packageName ?: packageOfTask(window.task)
         val refused = when {
             reversing -> "already turning back"
             cutShort -> "the launcher has already cut the flight"
             flight == null || surface == null -> "not flying home"
-            tapped == null || tapped != app.packageName -> "another app"
+            tapped == null || tapped != flying -> "another app ($tapped tapped, $flying flying)"
             !tuning.read().springLaunch -> "spring launch off"
             else -> null
         }
@@ -505,6 +500,7 @@ internal class CatchByGesture(
         caught = back
         flight = null
         reversing = true
+        toldHome = false
         reverseSettled = false
         pendingFinish = null
         main.post { driveReverse(back) }
@@ -567,6 +563,13 @@ internal class CatchByGesture(
         main.postDelayed({ traceTopTask("after the reverse") }, TOP_CHECK_MS)
     }
 
+    /** The app of [task], as the system lists its tasks; null where it is not running. */
+    private fun packageOfTask(task: Int): String? = runCatching {
+        val manager = launch.context?.getSystemService(android.app.ActivityManager::class.java) ?: return null
+        @Suppress("DEPRECATION")
+        manager.getRunningTasks(RUNNING_TASKS).firstOrNull { it.taskId == task }?.let { (it.topActivity ?: it.baseActivity)?.packageName }
+    }.getOrNull()
+
     /** Which task the system has on top now, and whether the launcher has the focus: what a reverse must leave as the app. */
     private fun traceTopTask(`when`: String) {
         val context = launch.context ?: return
@@ -619,6 +622,9 @@ internal class CatchByGesture(
 
         /** How long after a touch ends its click has surely reached the icon, should the touch be a tap. */
         const val TAP_SETTLE_MS = 48L
+
+        /** How many of the system's running tasks are looked through for a flying window's app. */
+        const val RUNNING_TASKS = 8
 
         /** How close, in pixels, a window turning back must be to its full bounds for the gesture to end in the app. */
         const val WHOLE_PX = 8f
