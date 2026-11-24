@@ -11,6 +11,7 @@ import android.content.Context
 import android.provider.Settings
 import android.view.Choreographer
 
+import io.github.sfsmoon.animatuna.core.Callers
 import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.Hooks
 import io.github.sfsmoon.animatuna.tuning.BreakFrame
@@ -148,7 +149,11 @@ internal class CatchByGesture(
             main.post { hold(window) }
         }
         hooks.around(lookup.method(LauncherSymbols.homeSpringEnd)) { spring, _, proceed ->
-            if (flying && spring === hostFlight) cutShort = true
+            // Pixel Launcher ends its flight at its end too: only an end well short of it is a cut.
+            if (flying && spring === hostFlight && hostProgress < FLIGHT_DONE) {
+                cutShort = true
+                trace.write("  catch: the launcher cuts its flight short at ${(hostProgress * PERCENT).toInt()}%, by ${Callers.here()}")
+            }
             proceed()
         }
         hooks.after(lookup.method(LauncherSymbols.recentsCanceled)) { _, _ ->
@@ -361,6 +366,9 @@ internal class CatchByGesture(
         const val MATRIX_VALUES = 9
         const val PERCENT = 100
         const val MS_PER_S = 1000f
+
+        /** How far Pixel Launcher's own flight must have come for its end to be its own, not a cut. */
+        const val FLIGHT_DONE = 0.95f
 
         /** How far home, by the springs' own place, a window has flown for the flight to count as landed. */
         const val LANDED = 0.9f

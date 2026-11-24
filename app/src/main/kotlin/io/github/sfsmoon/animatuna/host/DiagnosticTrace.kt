@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.os.SystemClock
 
+import io.github.sfsmoon.animatuna.core.Callers
 import io.github.sfsmoon.animatuna.core.TraceFile
 import io.github.sfsmoon.animatuna.hook.Hooks
 
@@ -48,23 +49,16 @@ internal class DiagnosticTrace(private val hooks: Hooks, private val trace: Trac
             }
 
             override fun onAnimationCancel(animation: Animator) {
-                trace.write("  animation cancelled after ${SystemClock.uptimeMillis() - startedAt} ms by ${caller()}")
+                trace.write("  animation cancelled after ${SystemClock.uptimeMillis() - startedAt} ms by ${Callers.here()}")
             }
 
             override fun onAnimationEnd(animation: Animator) {
                 val ran = SystemClock.uptimeMillis() - startedAt
                 val early = ran + EARLY_SLACK_MS < set.totalDuration
-                trace.write("  animation ended after $ran ms${if (early) " (early) by ${caller()}" else ""}")
+                trace.write("  animation ended after $ran ms${if (early) " (early) by ${Callers.here()}" else ""}")
             }
         })
     }
-
-    /** The launcher frames that led here, the innermost first, past the animation framework's own. */
-    private fun caller(): String = Throwable().stackTrace
-        .filter { frame -> FRAMEWORK.none { frame.className.startsWith(it) } }
-        .map { "${it.className.substringAfterLast('.')}.${it.methodName}" }
-        .take(CALLER_FRAMES)
-        .joinToString(" < ")
 
     private fun describe(value: Any?): String = when (value) {
         null -> "null"
@@ -78,9 +72,6 @@ internal class DiagnosticTrace(private val hooks: Hooks, private val trace: Trac
 
     private companion object {
         const val EARLY_SLACK_MS = 50L
-        const val CALLER_FRAMES = 8
-        /** Packages of the animation framework, reflection, hooking and this module, left out of a caller. */
-        val FRAMEWORK = listOf("android.animation.", "java.lang.reflect.", "io.github.sfsmoon.", "io.github.libxposed.", "org.matrix.", "org.lsposed.", "de.robv.")
     }
 
     private fun field(target: Any, name: String): Any? = runCatching { target.javaClass.getField(name).get(target) }.getOrNull()

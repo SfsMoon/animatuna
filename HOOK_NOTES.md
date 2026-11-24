@@ -234,6 +234,23 @@ Only the window's place, each frame, comes from this module's springs.
     marks it cut short: the window is no longer pulled home, and on
     `finishController(true)` a window whose springs are under 90 % of the way
     is handed to `SpringLaunch.returnFrom`, as on a cancel.
+- vc22 on the device (24 Nov), SystemUI restarted: every break frame logged
+  `on the launcher's leash`, and the user saw the tiny top-left window gone.
+  SystemUI only takes a new module build when it restarts itself; Vector's
+  hot reload restarts the launcher alone.
+- Still in rapid open and close:
+  - Pixel Launcher calls `RectFSpringAnim.end()` at the end of every flight,
+    not only a cut one, so every flight was marked cut short. From vc23 only
+    an `end()` before its own flight reaches 95 % counts, and its callers are
+    traced, to learn what cuts it (a touch down, by the timing).
+  - A launch the next gesture took before its first frame (`initBackgroundStateUI`
+    or the stale reset, 4 to 15 ms in) was let jump to its end, so the window
+    flashed whole between a cut flight and the next gesture. When such a
+    launch starts where a flight home stopped, the cancel is now skipped and
+    `SpringLaunch.handOver` hands on a window on springs from that place.
+  - Between a cut flight's `finishController(true)` and the next launch the
+    window is gone for 85 to 110 ms. The flight is cut on the touch, the launch
+    starts on the click, and the shell hides the app in between. Not solved.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

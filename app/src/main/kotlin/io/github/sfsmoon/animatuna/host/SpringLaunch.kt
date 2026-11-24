@@ -162,19 +162,27 @@ internal class SpringLaunch(
         val crop = now.firstCrop ?: return
         // As on ColorOS, an app opened again while its window flies home opens from where the window is, not from its icon.
         val time = SystemClock.uptimeMillis()
-        val back = returning?.takeIf { it.task == now.task && time - it.at < RETURN_FRESH_MS }
+        val back = returnFor(now.task, time)
         returning = null
         val from = back?.shown ?: WindowFit.shown(matrix, crop, firstRadius)
         if (from.width <= 0f || from.height <= 0f) return
+        now.window = windowFrom(now, from, back, time)
+        val whence = if (back == null) "" else " (back from its flight home, ${time - back.at} ms after)"
+        trace.write("  spring launch from ${from.width.toInt()}x${from.height.toInt()} at (${from.left.toInt()}, ${from.top.toInt()})$whence")
+    }
+
+    /** The flight home [task]'s window stopped in lately, if any: where its launch starts. */
+    private fun returnFor(task: Int, time: Long): Return? = returning?.takeIf { it.task == task && time - it.at < RETURN_FRESH_MS }
+
+    /** The launch's window on springs from [from] to the full window, at the speed it came back with if fresh. */
+    private fun windowFrom(now: Launch, from: RectSpring.Frame, back: Return?, time: Long): MovingWindow {
         val to = RectSpring.Frame(now.screen.left.toFloat(), now.screen.top.toFloat(), now.screen.right.toFloat(), now.screen.bottom.toFloat(), now.endRadius)
         val spring = RectSpring(from, Motion.LAUNCH).apply {
             target = to
             use(Motion.LAUNCH, now.durationFactor)
             if (back != null && time - back.at < KEEP_SPEED_MS) keepSpeedOf(back.spring)
         }
-        now.window = MovingWindow(now.task, now.screen, now.durationFactor, spring)
-        val whence = if (back == null) "" else " (back from its flight home, ${time - back.at} ms after)"
-        trace.write("  spring launch from ${from.width.toInt()}x${from.height.toInt()} at (${from.left.toInt()}, ${from.top.toInt()})$whence")
+        return MovingWindow(now.task, now.screen, now.durationFactor, spring)
     }
 
     /**
@@ -206,8 +214,13 @@ internal class SpringLaunch(
     @Volatile var context: Context? = null
         private set
 
-    /** Whether an app's launch is moving its window on springs now, one [handOver] would hand on. */
-    val isLaunching: Boolean get() = launch?.let { it.window != null && it.set.isRunning } == true
+    /**
+     * Whether an app's launch is moving its window on springs now, one
+     * [handOver] would hand on: once its spring has started, or before its
+     * first frame when it starts where a flight home stopped.
+     */
+    val isLaunching: Boolean
+        get() = launch?.let { it.set.isRunning && (it.window != null || returnFor(it.task, SystemClock.uptimeMillis()) != null) } == true
 
     /**
      * Hands the window of the launch running on to whoever takes it from the
@@ -216,7 +229,13 @@ internal class SpringLaunch(
      */
     fun handOver(): MovingWindow? {
         val now = launch ?: return null
-        val window = now.window ?: return null
+        // Taken before its first frame, a launch that starts where a flight home stopped is handed on from there.
+        val window = now.window ?: run {
+            val time = SystemClock.uptimeMillis()
+            val back = returnFor(now.task, time) ?: return null
+            returning = null
+            windowFrom(now, back.shown, back, time).also { trace.write("  spring launch taken before its first frame, back from its flight home") }
+        }
         launch = null
         main.post { if (now.set.isRunning) now.set.cancel() }
         trace.write("  spring launch handed over, task ${now.task}")
