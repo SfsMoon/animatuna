@@ -130,6 +130,8 @@ internal class CatchByGesture(
     private var destroyInput: java.lang.reflect.Method? = null
     private var willFinishHome: java.lang.reflect.Method? = null
     private var gestureStateOf: java.lang.reflect.Field? = null
+    private var shellControllerOf: java.lang.reflect.Field? = null
+    private var shellInputConsumer: java.lang.reflect.Method? = null
     private var setEndTarget: java.lang.reflect.Method? = null
     private var endTargetApp: Any? = null
 
@@ -148,6 +150,17 @@ internal class CatchByGesture(
         destroyInput = runCatching { lookup.method(LauncherSymbols.destroyInputConsumer) }.getOrNull()
         willFinishHome = runCatching { lookup.method(LauncherSymbols.willFinishToHome) }.getOrNull()
         gestureStateOf = runCatching { lookup.field(LauncherSymbols.gestureStateOf) }.getOrNull()
+        shellControllerOf = runCatching { lookup.field(LauncherSymbols.shellController) }.getOrNull()
+        shellInputConsumer = runCatching { lookup.method(LauncherSymbols.shellInputConsumer) }.getOrNull()
+        hooks.around(lookup.method(LauncherSymbols.enableInputConsumer)) { _, _, proceed ->
+            // A window turning back takes its own touches, as ColorOS's does: the launcher does not take them again.
+            if (reversing) {
+                trace.write("  reverse: the launcher would take the app's touches again; they stay the app's")
+                null
+            } else {
+                proceed()
+            }
+        }
         setEndTarget = runCatching { lookup.method(LauncherSymbols.setEndTarget) }.getOrNull()
         endTargetApp = runCatching { lookup.enumConstant(LauncherSymbols.END_TARGET, LauncherSymbols.END_TARGET_APP) }.getOrNull()
         hooks.around(android.app.Activity::class.java.getMethod("startActivityForResult", Intent::class.java, Int::class.javaPrimitiveType, android.os.Bundle::class.java)) { _, args, proceed ->
@@ -551,10 +564,13 @@ internal class CatchByGesture(
             .onFailure { trace.write("  reverse: could not give touches back to the app: $it") }.getOrNull()
         val controller = runCatching { controllerOf?.get(handler)?.also { willFinishHome?.invoke(it, false) } }
             .onFailure { trace.write("  reverse: could not tell the shell the gesture ends in the app: $it") }.getOrNull()
+        // As ColorOS's `disableInputConsumer`: the shell stops taking the app's touches for the launcher.
+        val touches = runCatching { controller?.let { shellControllerOf?.get(it) }?.also { shellInputConsumer?.invoke(it, false) } }
+            .onFailure { trace.write("  reverse: could not give the app its touches back: $it") }.getOrNull()
         // As ColorOS: `mGestureState.setEndTarget(LAST_TASK, false)`.
         val ends = runCatching { gestureStateOf?.get(handler)?.also { setEndTarget?.invoke(it, endTargetApp, false) } }
             .onFailure { trace.write("  reverse: could not set the gesture's end to the app: $it") }.getOrNull()
-        trace.write("  reverse: gesture input ${if (input != null) "destroyed" else "not found"}, shell ${if (controller != null) "told it ends in the app" else "not reached"}, end target ${if (ends != null && endTargetApp != null) "the app" else "left"}")
+        trace.write("  reverse: gesture input ${if (input != null) "destroyed" else "not found"}, shell ${if (controller != null) "told it ends in the app" else "not reached"}, end target ${if (ends != null && endTargetApp != null) "the app" else "left"}, touches ${if (touches != null) "the app's" else "left to the launcher"}")
     }
 
     /** Each frame of a window turning back to its app: sets its place where Pixel Launcher no longer does, until it has settled. */

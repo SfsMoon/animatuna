@@ -595,3 +595,8 @@ class com.android.quickstep.SwipeUpAnimationLogic
   field mGestureState
 class com.android.quickstep.GestureState
   method setEndTarget(com.android.quickstep.GestureState$GestureEndTarget,boolean)
+class com.android.quickstep.RecentsAnimationController
+  field mController
+  method enableInputConsumer()
+class com.android.systemui.shared.system.RecentsAnimationControllerCompat
+  method setInputConsumerEnabled(boolean)

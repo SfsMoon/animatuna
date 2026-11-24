@@ -413,6 +413,16 @@ Only the window's place, each frame, comes from this module's springs.
     it back with no gesture to end (`shell not reached`, `the gesture never
     ended`). vc35 forgets the gesture's app when its gesture ends or is
     cancelled, so such a flight is left to the launcher.
+- vc35 on the device (24 Nov): turns back ended in the app, but the app
+  ignored swipes for about a second and taps reached the launcher (`tap not
+  taken, no window in flight` after a turn back). The shell logs `set focus
+  to recents` twice per gesture: once at its start and once from
+  `AbsSwipeUpHandler.startInterceptingTouchesForGesture` →
+  `RecentsAnimationController.enableInputConsumer` as the flight home
+  starts. ColorOS's `tryReverseRecentAnim` calls `disableInputConsumer()`.
+  vc36 does the same through `RecentsAnimationController.mController`
+  (`RecentsAnimationControllerCompat.setInputConsumerEnabled(false)`) as a
+  window turns back, and skips `enableInputConsumer` while it turns back.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

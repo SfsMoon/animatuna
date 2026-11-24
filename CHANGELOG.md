@@ -23,5 +23,7 @@
 - Tapping an app's icon while its window flies home turns the window back
   to the app on the same springs, as ColorOS does, instead of launching the
   app anew.
+- Fixed: an app turned back from its flight home ignored swipes and taps
+  for about a second, as the launcher still took its touches.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

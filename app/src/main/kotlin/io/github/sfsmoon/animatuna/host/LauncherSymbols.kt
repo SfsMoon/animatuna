@@ -118,6 +118,16 @@ object LauncherSymbols {
     val willFinishToHome = Member(RECENTS_CONTROLLER, "setWillFinishToHome", "boolean")
 
     /**
+     * The shell taking touches on the app's window for the launcher during
+     * the gesture (`enableInputConsumer`, at its start and at its flight home);
+     * ColorOS turns it off as a window turns back (`disableInputConsumer`),
+     * through the shell's own switch on the launcher's controller.
+     */
+    val enableInputConsumer = Member(RECENTS_CONTROLLER, "enableInputConsumer")
+    val shellController = HostField(RECENTS_CONTROLLER, "mController")
+    val shellInputConsumer = Member("com.android.systemui.shared.system.RecentsAnimationControllerCompat", "setInputConsumerEnabled", "boolean")
+
+    /**
      * Where the gesture ends, as its handler and the launcher go by it after
      * the gesture: ColorOS sets it to the app (`LAST_TASK`) as a window turns
      * back, and Pixel Launcher, left at `HOME`, sends the launcher home again
@@ -147,12 +157,12 @@ object LauncherSymbols {
         launchRunnerCancelled,
     )
 
-    val fields: List<HostField> = listOf(surfaceOf, homeSpringStartRect, homeSpringProgress, gestureInputConsumer, gestureController, gestureStateOf)
+    val fields: List<HostField> = listOf(surfaceOf, homeSpringStartRect, homeSpringProgress, gestureInputConsumer, gestureController, gestureStateOf, shellController)
 
     val all: List<Member> = traced + listOf(
         appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
         surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely, endRunningWindowAnim, floatingIconTouchClose, inputConsumerMotion,
-        destroyInputConsumer, willFinishToHome, setEndTarget,
+        destroyInputConsumer, willFinishToHome, setEndTarget, enableInputConsumer, shellInputConsumer,
     )
 }
 
