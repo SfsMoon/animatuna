@@ -293,6 +293,21 @@ Only the window's place, each frame, comes from this module's springs.
   - Every tap during a flight traces whether it was taken. A cut flight
     traces 20 callers, to show whether Pixel Launcher cuts it at the touch
     down (then the tap finds nothing left to turn back) or at the click.
+- vc25 on the device (24 Nov): every tap mid-flight logged `reverse: tap
+  not taken, no window in flight`. The 20 callers of the cut show why: Pixel
+  Launcher ends the flight at the touch down, before any click.
+  `InputConsumerProxy.onInputConsumerMotionEvent` ->
+  `initInputConsumerIfNeeded` -> the swipe handler's callback ->
+  `AbsSwipeUpHandler.endRunningWindowAnim(true)` -> `RectFSpringAnim.cancel`,
+  then `finishController(true)` 10 ms later; the click reaches the icon
+  40 to 60 ms after that.
+- vc26 does what ColorOS's `setMaybeReverseGestureAnimation` does on its
+  flying icon layer's touch down: `endRunningWindowAnim`, around, is held
+  while called from a touch down (`onInputConsumerMotionEvent` with
+  `ACTION_DOWN`, around) during a flight. The flight goes on. A click on the
+  app's icon then turns it back (`reverseToApp` drops the held end). Any
+  other touch: 48 ms after its `ACTION_UP` or `ACTION_CANCEL`, the held
+  `endRunningWindowAnim` is called as Pixel Launcher would have.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

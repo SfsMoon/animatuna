@@ -93,6 +93,16 @@ object LauncherSymbols {
     val surfaceAlpha = Member(SURFACE, "setAlpha", "float")
     val surfaceOf = HostField(SURFACE, "mSurface")
 
+    /**
+     * The gesture's handler ending its window's flight (cancelled when bound
+     * home): what Pixel Launcher does as a touch lands on the screen
+     * mid-flight, from the gesture's input consumer
+     * (`InputConsumerProxy.onInputConsumerMotionEvent`), before the touch
+     * reaches the home screen.
+     */
+    val endRunningWindowAnim = Member("com.android.quickstep.AbsSwipeUpHandler", "endRunningWindowAnim", "boolean")
+    val inputConsumerMotion = Member("com.android.quickstep.util.InputConsumerProxy", "onInputConsumerMotionEvent", "android.view.MotionEvent")
+
     /** A tap on an app's icon starting the app: (the icon, its intent, its item). */
     val startActivitySafely = Member(
         "com.android.launcher3.uioverrides.QuickstepLauncher", "startActivitySafely",
@@ -113,7 +123,7 @@ object LauncherSymbols {
 
     val all: List<Member> = traced + listOf(
         appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
-        surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely,
+        surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely, endRunningWindowAnim, inputConsumerMotion,
     )
 }
 

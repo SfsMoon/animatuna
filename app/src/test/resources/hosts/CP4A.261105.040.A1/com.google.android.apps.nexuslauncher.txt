@@ -578,3 +578,7 @@ class com.android.quickstep.BaseActivityInterface$DefaultAnimationFactory
   method setEndTarget(com.android.quickstep.GestureState$GestureEndTarget)
 class com.android.launcher3.uioverrides.QuickstepLauncher
   method startActivitySafely(android.view.View,android.content.Intent,com.android.launcher3.model.data.ItemInfo)
+class com.android.quickstep.AbsSwipeUpHandler
+  method endRunningWindowAnim(boolean)
+class com.android.quickstep.util.InputConsumerProxy
+  method onInputConsumerMotionEvent(android.view.MotionEvent)

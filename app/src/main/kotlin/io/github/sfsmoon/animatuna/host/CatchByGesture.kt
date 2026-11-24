@@ -109,6 +109,11 @@ internal class CatchByGesture(
     @Volatile private var pendingFinish: Pair<Any?, List<Any?>>? = null
     @Volatile private var reverseSettled = false
     private val finishing = ThreadLocal<Boolean>()
+
+    /** The touch Pixel Launcher's gesture input sees now, and the end of the flight it would make, held until the touch is known. */
+    private val touch = ThreadLocal<Int>()
+    @Volatile private var heldEnd: Pair<Any?, List<Any?>>? = null
+    private lateinit var endWindowAnim: java.lang.reflect.Method
     private lateinit var finishMethod: java.lang.reflect.Method
     private lateinit var cornerRadiusMethod: java.lang.reflect.Method
     @Volatile private var caughtAt = 0L
@@ -118,6 +123,30 @@ internal class CatchByGesture(
     override fun install(lookup: HostLookup) {
         val surfaceOf = lookup.field(LauncherSymbols.surfaceOf)
         finishMethod = lookup.method(LauncherSymbols.finishRecents)
+        endWindowAnim = lookup.method(LauncherSymbols.endRunningWindowAnim)
+        hooks.around(lookup.method(LauncherSymbols.inputConsumerMotion)) { _, args, proceed ->
+            val action = (args.firstOrNull() as? android.view.MotionEvent)?.actionMasked
+            touch.set(action)
+            try {
+                proceed()
+            } finally {
+                touch.remove()
+                // Once the touch is over, a tap on the flying app's icon has been taken by now; anything else ends the flight as Pixel Launcher would have.
+                if ((action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) && heldEnd != null) {
+                    main.postDelayed({ releaseHeldEnd("the touch was no tap on its icon") }, TAP_SETTLE_MS)
+                }
+            }
+        }
+        hooks.around(endWindowAnim) { handler, args, proceed ->
+            // As ColorOS marks a touch on the flying window "maybe reverse", a touch landing mid-flight does not end it yet.
+            if (touch.get() == android.view.MotionEvent.ACTION_DOWN && flight != null && !cutShort && !reversing && tuning.read().springLaunch) {
+                heldEnd = handler to args
+                trace.write("  reverse: a touch lands ${(flown * PERCENT).toInt()}% of the way home; the flight goes on until it is known to be a tap")
+                null
+            } else {
+                proceed()
+            }
+        }
         cornerRadiusMethod = lookup.method(LauncherSymbols.windowCornerRadius)
         val progressOf = lookup.field(LauncherSymbols.homeSpringProgress)
         listOf(LauncherSymbols.staleGestureReset, LauncherSymbols.gestureBackgroundState).forEach { member ->
@@ -430,6 +459,7 @@ internal class CatchByGesture(
             keepSpeedOf(window.spring)
         }
         val back = MovingWindow(window.task, window.screen, window.durationFactor, springs).also { it.use(Motion.LAUNCH) }
+        heldEnd = null
         trace.write("  reverse: tapped ${(flown * PERCENT).toInt()}% of the way home, the window turns back to its app")
         caught = back
         flight = null
@@ -478,8 +508,17 @@ internal class CatchByGesture(
         letGo("the window turned back into its app")
     }
 
+    /** Ends the flight as Pixel Launcher would have at the touch, the touch having turned out to be no tap on its icon. */
+    private fun releaseHeldEnd(why: String) {
+        val (handler, args) = heldEnd ?: return
+        heldEnd = null
+        trace.write("  reverse: $why; the flight ends as the launcher would have")
+        runCatching { endWindowAnim.invoke(handler, *args.toTypedArray()) }.onFailure { trace.write("  reverse: could not end the flight: $it") }
+    }
+
     private fun letGo(why: String) {
         caught = null
+        heldEnd = null
         reversing = false
         reverseSettled = false
         pendingFinish = null
@@ -504,6 +543,9 @@ internal class CatchByGesture(
 
         /** How many callers a cut flight traces: enough to reach the input that cut it. */
         const val CUT_CALLERS = 20
+
+        /** How long after a touch ends its click has surely reached the icon, should the touch be a tap. */
+        const val TAP_SETTLE_MS = 48L
 
         /** The longest a window turns back before the gesture must have ended. */
         const val REVERSE_LONGEST_MS = 1500L
