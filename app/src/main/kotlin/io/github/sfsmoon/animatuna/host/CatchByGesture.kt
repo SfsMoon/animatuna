@@ -279,6 +279,11 @@ internal class CatchByGesture(
         val startOf = lookup.field(LauncherSymbols.homeSpringStartRect)
         val cornerRadius = cornerRadiusMethod
         hooks.around(lookup.method(LauncherSymbols.homeSpringStart)) { spring, args, proceed ->
+            // Its end set back to the app, Pixel Launcher starts a flight of its own again; the window keeps turning back.
+            if (reversing) {
+                trace.write("  reverse: the launcher starts another flight home; the window keeps turning back")
+                return@around proceed()
+            }
             val window = caught
             hostFlight = spring
             cutShort = false
@@ -494,6 +499,11 @@ internal class CatchByGesture(
         val tapped = intent?.component?.packageName ?: intent?.`package`
         // Pixel Launcher's gesture target does not always carry its task's app; the system knows it by the task.
         val flying = app.packageName ?: packageOfTask(window.task)
+        if (reversing && tapped != null && tapped == flying) {
+            // Tapped again while it turns back: it is already on its way into its app.
+            trace.write("  reverse: tapped again while turning back, taken")
+            return true
+        }
         val refused = when {
             reversing -> "already turning back"
             cutShort -> "the launcher has already cut the flight"

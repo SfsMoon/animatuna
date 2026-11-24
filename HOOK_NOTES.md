@@ -389,6 +389,16 @@ Only the window's place, each frame, comes from this module's springs.
   and, as a safety net that traces its callers, holds a HOME start from the
   launcher's own activity (`Activity.startActivityForResult`, the funnel of
   its starts) within 600 ms after a turn back ended in the app.
+- vc33 on the device (24 Nov): every reverse logged `end target the app`,
+  and no stale HOME start came. The user found it fixed, but the window
+  still at times pushed forward. The trace showed why: 170 to 240 ms into
+  each turn back, Pixel Launcher started a flight home of its own again
+  (`RectFSpringAnim.start`, at the end target's change), and the catch took
+  it as a flight to fly the window home on: the window turned back toward
+  its icon. The user tapped again, the tap was refused (`already turning
+  back`), and the app launched anew. vc34 leaves such a flight to the
+  launcher's own frames (overwritten) while a window turns back, and takes
+  a second tap on the same app during the turn back without launching it.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.
