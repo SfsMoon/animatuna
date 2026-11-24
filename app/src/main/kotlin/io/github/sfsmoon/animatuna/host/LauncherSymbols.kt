@@ -110,6 +110,13 @@ object LauncherSymbols {
     val floatingIconTouchClose = Member("com.android.launcher3.views.ListenerView", "handleClose", "boolean")
     val inputConsumerMotion = Member("com.android.quickstep.util.InputConsumerProxy", "onInputConsumerMotionEvent", "android.view.MotionEvent")
 
+    // What ColorOS undoes as a window turns back to its app (`tryReverseRecentAnim`): the gesture's input
+    // consumer, which sends touches on the app to the launcher, and the shell's word that the gesture ends home.
+    val gestureInputConsumer = HostField("com.android.quickstep.AbsSwipeUpHandler", "mInputConsumerProxy")
+    val gestureController = HostField("com.android.quickstep.AbsSwipeUpHandler", "mRecentsAnimationController")
+    val destroyInputConsumer = Member("com.android.quickstep.util.InputConsumerProxy", "destroy")
+    val willFinishToHome = Member(RECENTS_CONTROLLER, "setWillFinishToHome", "boolean")
+
     /** A tap on an app's icon starting the app: (the icon, its intent, its item). */
     val startActivitySafely = Member(
         "com.android.launcher3.uioverrides.QuickstepLauncher", "startActivitySafely",
@@ -126,11 +133,12 @@ object LauncherSymbols {
         launchRunnerCancelled,
     )
 
-    val fields: List<HostField> = listOf(surfaceOf, homeSpringStartRect, homeSpringProgress)
+    val fields: List<HostField> = listOf(surfaceOf, homeSpringStartRect, homeSpringProgress, gestureInputConsumer, gestureController)
 
     val all: List<Member> = traced + listOf(
         appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
         surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely, endRunningWindowAnim, floatingIconTouchClose, inputConsumerMotion,
+        destroyInputConsumer, willFinishToHome,
     )
 }
 

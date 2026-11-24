@@ -317,6 +317,22 @@ Only the window's place, each frame, comes from this module's springs.
   from the same `onInputConsumerMotionEvent`. vc27 holds
   `ListenerView.handleClose(boolean)` the same way; every held call is made
   in order when the touch turns out to be no tap on the app's icon.
+- vc27 on the device (24 Nov): every tap mid-flight turned the window back
+  (`reverse: tapped` -> `the window is whole` -> `turned back into its app`).
+  The user then found the app deaf to gestures after two quick rounds, and
+  closing. The trace shows a tap reaching the launcher's icons 300 to 600 ms
+  after each reverse, with no gesture between: touches on the app still went
+  to the launcher. Two causes:
+  - The gesture's input consumer (`AbsSwipeUpHandler.mInputConsumerProxy`)
+    was left in place. ColorOS destroys it first thing in
+    `tryReverseRecentAnim`; vc28 does too (`InputConsumerProxy.destroy()`),
+    and tells the shell the gesture no longer ends home
+    (`mRecentsAnimationController.setWillFinishToHome(false)`).
+  - In four of eight reverses the launcher ended the gesture home twice, the
+    second time with no callback (`finishController(true, null, false, …)`),
+    and the held finish was replaced by it, so the swipe handler's own end
+    (`AbsSwipeUpHandler$$ExternalSyntheticLambda0`) never ran. vc28 keeps the
+    first.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

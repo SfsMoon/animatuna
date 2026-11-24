@@ -584,3 +584,10 @@ class com.android.quickstep.util.InputConsumerProxy
   method onInputConsumerMotionEvent(android.view.MotionEvent)
 class com.android.launcher3.views.ListenerView
   method handleClose(boolean)
+class com.android.quickstep.AbsSwipeUpHandler
+  field mInputConsumerProxy
+  field mRecentsAnimationController
+class com.android.quickstep.util.InputConsumerProxy
+  method destroy()
+class com.android.quickstep.RecentsAnimationController
+  method setWillFinishToHome(boolean)

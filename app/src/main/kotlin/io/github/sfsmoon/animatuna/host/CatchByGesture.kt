@@ -117,6 +117,13 @@ internal class CatchByGesture(
     private val touch = ThreadLocal<Int>()
     private val held = java.util.concurrent.CopyOnWriteArrayList<Held>()
     private lateinit var finishMethod: java.lang.reflect.Method
+
+    // The gesture's handler, last seen ending a flight, and what of it ColorOS undoes as a window turns back.
+    @Volatile private var gestureHandler: Any? = null
+    private var inputConsumerOf: java.lang.reflect.Field? = null
+    private var controllerOf: java.lang.reflect.Field? = null
+    private var destroyInput: java.lang.reflect.Method? = null
+    private var willFinishHome: java.lang.reflect.Method? = null
     private lateinit var cornerRadiusMethod: java.lang.reflect.Method
     @Volatile private var caughtAt = 0L
     private var framesTraced = 0
@@ -125,6 +132,10 @@ internal class CatchByGesture(
     override fun install(lookup: HostLookup) {
         val surfaceOf = lookup.field(LauncherSymbols.surfaceOf)
         finishMethod = lookup.method(LauncherSymbols.finishRecents)
+        inputConsumerOf = runCatching { lookup.field(LauncherSymbols.gestureInputConsumer) }.getOrNull()
+        controllerOf = runCatching { lookup.field(LauncherSymbols.gestureController) }.getOrNull()
+        destroyInput = runCatching { lookup.method(LauncherSymbols.destroyInputConsumer) }.getOrNull()
+        willFinishHome = runCatching { lookup.method(LauncherSymbols.willFinishToHome) }.getOrNull()
         hooks.around(lookup.method(LauncherSymbols.inputConsumerMotion)) { _, args, proceed ->
             val action = (args.firstOrNull() as? android.view.MotionEvent)?.actionMasked
             touch.set(action)
@@ -143,6 +154,7 @@ internal class CatchByGesture(
         listOf(LauncherSymbols.endRunningWindowAnim, LauncherSymbols.floatingIconTouchClose).forEach { member ->
             val method = lookup.method(member)
             hooks.around(method) { target, args, proceed ->
+                if (member == LauncherSymbols.endRunningWindowAnim) gestureHandler = target
                 if (touch.get() == android.view.MotionEvent.ACTION_DOWN && flight != null && !cutShort && !reversing && tuning.read().springLaunch) {
                     if (held.isEmpty()) trace.write("  reverse: a touch lands ${(flown * PERCENT).toInt()}% of the way home; the flight goes on until it is known to be a tap")
                     held.add(Held(method, target, args))
@@ -220,8 +232,9 @@ internal class CatchByGesture(
         hooks.around(lookup.method(LauncherSymbols.finishRecents)) { controller, args, proceed ->
             // A window turning back to its app: the gesture Pixel Launcher ends home ends back in the app, once the springs have settled.
             if (finishing.get() != true && reversing && args.firstOrNull() == true) {
-                pendingFinish = controller to args
-                trace.write("  reverse: the launcher ends the gesture home; it ends in the app once the window is whole")
+                // The first call carries the gesture handler's own end; a later one (the launcher home again) adds nothing to it.
+                if (pendingFinish == null) pendingFinish = controller to args
+                trace.write("  reverse: the launcher ends the gesture home${if (args.getOrNull(1) == null) " again" else ""}; it ends in the app once the window is whole")
                 finishReverseIfReady()
                 null
             } else {
@@ -465,6 +478,7 @@ internal class CatchByGesture(
         }
         val back = MovingWindow(window.task, window.screen, window.durationFactor, springs).also { it.use(Motion.LAUNCH) }
         held.clear()
+        undoGoingHome()
         trace.write("  reverse: tapped ${(flown * PERCENT).toInt()}% of the way home, the window turns back to its app")
         caught = back
         flight = null
@@ -474,6 +488,19 @@ internal class CatchByGesture(
         main.post { driveReverse(back) }
         main.postDelayed({ if (caught === back && reversing && pendingFinish == null) letGo("the gesture never ended, its app left to the launcher") }, REVERSE_LONGEST_MS)
         return true
+    }
+
+    /**
+     * As ColorOS's `tryReverseRecentAnim`: the gesture's input consumer, which
+     * sends touches on the app to the launcher, is destroyed, so the app takes
+     * them again; and the shell is told the gesture no longer ends home.
+     */
+    private fun undoGoingHome() {
+        val handler = gestureHandler ?: return trace.write("  reverse: no gesture handler seen, its input left as it is")
+        runCatching { inputConsumerOf?.get(handler)?.let { destroyInput?.invoke(it) } }
+            .onFailure { trace.write("  reverse: could not give touches back to the app: $it") }
+        runCatching { controllerOf?.get(handler)?.let { willFinishHome?.invoke(it, false) } }
+            .onFailure { trace.write("  reverse: could not tell the shell the gesture ends in the app: $it") }
     }
 
     /** Each frame of a window turning back to its app: sets its place where Pixel Launcher no longer does, until it has settled. */
