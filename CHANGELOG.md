@@ -25,5 +25,7 @@
   app anew.
 - Fixed: an app turned back from its flight home ignored swipes and taps
   for about a second, as the launcher still took its touches.
+- Fixed: tapping another app's icon while a window flies home opened that
+  app with no animation.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

@@ -423,6 +423,14 @@ Only the window's place, each frame, comes from this module's springs.
   vc36 does the same through `RecentsAnimationController.mController`
   (`RecentsAnimationControllerCompat.setInputConsumerEnabled(false)`) as a
   window turns back, and skips `enableInputConsumer` while it turns back.
+- vc36 on the device (24 Nov): turns back took the app's touches at once;
+  a dozen in a row on the dialer held. A tap on another app's icon during a
+  flight opened it with no animation: the flight's end was still held for
+  the tap, so the launch reached the shell while the recents transition
+  ran and was merged into it (`merge: Opening task=…, Closing recents`, no
+  `AppLaunchAnimationRunner.onAnimationStart`). Stock Pixel cuts the
+  flight at the touch, before the click. vc37 lets the held end go as soon
+  as a tap is refused, before the launch proceeds.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

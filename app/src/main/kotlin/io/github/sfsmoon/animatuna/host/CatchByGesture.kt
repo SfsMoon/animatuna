@@ -530,6 +530,9 @@ internal class CatchByGesture(
         }
         if (refused != null) {
             trace.write("  reverse: tap not taken, $refused")
+            // The flight ends home before the tapped app opens, as it would have at the touch, so that app opens
+            // with its own launch; launched while the gesture still runs, the shell merges it in with none.
+            releaseHeldEnd("the tap opens another app")
             return false
         }
         val corner = runCatching { cornerRadiusMethod.invoke(null, context) as Float }.getOrDefault(0f)
