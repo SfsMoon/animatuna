@@ -1,5 +1,6 @@
 package io.github.sfsmoon.animatuna.host
 
+import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.RectF
@@ -10,6 +11,9 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.provider.Settings
 import android.view.Choreographer
+import android.view.View
+
+import java.lang.ref.WeakReference
 
 import io.github.sfsmoon.animatuna.core.Callers
 import io.github.sfsmoon.animatuna.core.TraceFile
@@ -54,7 +58,9 @@ import io.github.sfsmoon.animatuna.tuning.WindowFit
  * Every other gesture home flies on the same engine too (`Tuning.springHome`):
  * the springs take the window where Pixel Launcher's own flight starts it, at
  * the finger's speed. Should its app be opened again before the window lands,
- * the launch starts where the window is ([SpringLaunch.returnFrom]).
+ * the launch starts where the window is ([SpringLaunch.returnFrom]); while
+ * the system hides the window in between, a picture of it flies on in its
+ * place ([GhostWindow]).
  */
 internal class CatchByGesture(
     private val hooks: Hooks,
@@ -94,12 +100,20 @@ internal class CatchByGesture(
     /** The app window the gesture moves, whether caught or not: its task, its surface, its full-size bounds. */
     private class GestureApp(val task: Int, val surface: Any, val screen: Rect)
     @Volatile private var gestureApp: GestureApp? = null
+
+    // A picture of the flying window, taken as its flight starts, and the home screen it can fly on above.
+    private var snapshots: TaskSnapshots? = null
+    private var picture: Bitmap? = null
+    private var pictureTask = NO_TASK
+    private var homeRoot: WeakReference<View>? = null
+    private var ghost: GhostWindow? = null
     @Volatile private var caughtAt = 0L
     private var framesTraced = 0
     private val choreographer by lazy { Choreographer.getInstance() }
 
     override fun install(lookup: HostLookup) {
         val surfaceOf = lookup.field(LauncherSymbols.surfaceOf)
+        snapshots = runCatching { TaskSnapshots(lookup) }.onFailure { trace.write("  no window pictures: $it") }.getOrNull()
         val progressOf = lookup.field(LauncherSymbols.homeSpringProgress)
         listOf(LauncherSymbols.staleGestureReset, LauncherSymbols.gestureBackgroundState).forEach { member ->
             hooks.around(lookup.method(member)) { _, _, proceed ->
@@ -159,7 +173,7 @@ internal class CatchByGesture(
         hooks.after(lookup.method(LauncherSymbols.recentsCanceled)) { _, _ ->
             val window = caught ?: return@after
             // Cancelled mid-flight, as a tap opening the app again does: its launch starts where the window is.
-            if (flying) launch.returnFrom(window.task, shown ?: window.spring.frame(), window.spring)
+            if (flying) returnFromFlight(window, withPicture = false)
             letGo("the gesture was cancelled${if (flying) ", ${(flown * PERCENT).toInt()}% of the way home" else ""}")
         }
         hooks.after(lookup.method(LauncherSymbols.finishRecents)) { _, args ->
@@ -170,7 +184,7 @@ internal class CatchByGesture(
             } else if (flight != null) {
                 // Ended mid-way, as a tap opening the app again does: should the app open, it opens from where the window is.
                 val springs = flight?.progress(window.spring.frame(), window.spring.target) ?: 1f
-                if (cutShort || springs < LANDED) launch.returnFrom(window.task, shown ?: window.spring.frame(), window.spring)
+                if (cutShort || springs < LANDED) returnFromFlight(window, withPicture = cutShort)
                 letGo("the gesture ended, the window ${(flown * PERCENT).toInt()}% of the way home, its springs ${(springs * PERCENT).toInt()}%${if (cutShort) ", the launcher's flight cut short" else ""}")
             } else {
                 // Should no flight home be seen, the launcher's own frames, which the springs cannot read, stand.
@@ -210,6 +224,7 @@ internal class CatchByGesture(
                     shown = from
                     flight = HomeFlight(from)
                     framesTraced = TRACED_FRAMES
+                    takePicture(app.task)
                     trace.write("  home flight on the springs, task ${app.task}, from ${start.toShortString()} to ${icon.toShortString()}")
                 } else {
                     trace.write("  home flight starts, left to the launcher")
@@ -226,6 +241,7 @@ internal class CatchByGesture(
                     shown = now
                     flight = HomeFlight(now)
                     framesTraced = TRACED_FRAMES
+                    takePicture(window.task)
                     trace.write("  catch: flying home on the same springs, to ${icon.toShortString()}")
                 }
             } else {
@@ -233,11 +249,12 @@ internal class CatchByGesture(
             }
             proceed()
         }
-        hooks.replaceArguments(lookup.method(LauncherSymbols.floatingIconUpdate)) { _, args ->
+        hooks.replaceArguments(lookup.method(LauncherSymbols.floatingIconUpdate)) { icon, args ->
             // The icon the window lands as follows the window, takes its shape as far as the window has come,
             // and its corner is where the window's heads.
             val window = caught ?: return@replaceArguments args
             if (flight == null || args.getOrNull(5) != false) return@replaceArguments args
+            (icon as? View)?.rootView?.let { root -> if (homeRoot?.get() !== root) homeRoot = WeakReference(root) }
             (args.getOrNull(3) as? Float)?.let { shapeFrom = it }
             (args.getOrNull(4) as? Float)?.let { radius -> window.spring.target = window.spring.target.copy(radius = radius) }
             val now = shown ?: return@replaceArguments args
@@ -346,6 +363,41 @@ internal class CatchByGesture(
             .onFailure { trace.write("  catch: could not hand the frame to SystemUI: $it") }
     }
 
+    /** Takes a picture of [task]'s window as its flight starts, for a [GhostWindow] should the flight be cut. */
+    private fun takePicture(task: Int) {
+        picture = null
+        pictureTask = task
+        snapshots?.take(task) { taken -> if (pictureTask == task) picture = taken }
+    }
+
+    /**
+     * The window's flight home stops short of its icon: should its app open
+     * again, the launch starts where the window is. Its springs carry on from
+     * where it shows; where the system hides the window now, its picture flies
+     * on in its place, on those springs, until the launch takes over.
+     */
+    private fun returnFromFlight(window: MovingWindow, withPicture: Boolean) {
+        val home = flight ?: return
+        val from = shown ?: window.spring.frame()
+        val springs = RectSpring(from, Motion.HOME).apply {
+            target = window.spring.target
+            keepSpeedOf(window.spring)
+        }
+        val rest = MovingWindow(window.task, window.screen, window.durationFactor, springs).also { it.use(Motion.HOME) }
+        ghost?.handOff()
+        val root = homeRoot?.get()
+        val taken = picture?.takeIf { pictureTask == window.task }
+        val flier = if (withPicture && root != null && taken != null) {
+            GhostWindow(root, taken, rest, home, shapeFrom) { trace.write("  ghost: gone, task ${window.task}") }
+        } else {
+            null
+        }
+        ghost = flier
+        flier?.show()
+        trace.write("  ghost: ${if (flier != null) "the window's picture flies on" else "no picture (${if (!withPicture) "not cut" else if (root == null) "no home screen" else "not taken yet"})"}, task ${window.task}")
+        launch.returnFrom(window.task, rest) { flier?.handOff() == true }
+    }
+
     private fun letGo(why: String) {
         caught = null
         flight = null
@@ -366,6 +418,7 @@ internal class CatchByGesture(
         const val MATRIX_VALUES = 9
         const val PERCENT = 100
         const val MS_PER_S = 1000f
+        const val NO_TASK = -1
 
         /** How far Pixel Launcher's own flight must have come for its end to be its own, not a cut. */
         const val FLIGHT_DONE = 0.95f

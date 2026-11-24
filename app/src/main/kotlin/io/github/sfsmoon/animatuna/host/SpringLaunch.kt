@@ -61,8 +61,13 @@ internal class SpringLaunch(
         var hostWroteAt = 0L
     }
 
-    /** A window that was flying home when its app was opened again: where it showed, on what springs, since when. */
-    private class Return(val task: Int, val shown: RectSpring.Frame, val spring: RectSpring, val at: Long)
+    /**
+     * A window that was flying home when its app was opened again: its
+     * springs, from where it showed, and since when. [takeOver] tells whoever
+     * still moves them that the launch takes them, and whether they were still
+     * moving, so the launch carries their speed.
+     */
+    private class Return(val task: Int, val window: MovingWindow, val at: Long, val takeOver: () -> Boolean)
 
     private val main = Handler(Looper.getMainLooper())
     private val building = ThreadLocal<Any?>()
@@ -164,7 +169,7 @@ internal class SpringLaunch(
         val time = SystemClock.uptimeMillis()
         val back = returnFor(now.task, time)
         returning = null
-        val from = back?.shown ?: WindowFit.shown(matrix, crop, firstRadius)
+        val from = back?.window?.spring?.frame() ?: WindowFit.shown(matrix, crop, firstRadius)
         if (from.width <= 0f || from.height <= 0f) return
         now.window = windowFrom(now, from, back, time)
         val whence = if (back == null) "" else " (back from its flight home, ${time - back.at} ms after)"
@@ -177,20 +182,23 @@ internal class SpringLaunch(
     /** The launch's window on springs from [from] to the full window, at the speed it came back with if fresh. */
     private fun windowFrom(now: Launch, from: RectSpring.Frame, back: Return?, time: Long): MovingWindow {
         val to = RectSpring.Frame(now.screen.left.toFloat(), now.screen.top.toFloat(), now.screen.right.toFloat(), now.screen.bottom.toFloat(), now.endRadius)
+        val moving = back?.takeOver?.invoke() == true
         val spring = RectSpring(from, Motion.LAUNCH).apply {
             target = to
             use(Motion.LAUNCH, now.durationFactor)
-            if (back != null && time - back.at < KEEP_SPEED_MS) keepSpeedOf(back.spring)
+            if (back != null && (moving || time - back.at < KEEP_SPEED_MS)) keepSpeedOf(back.window.spring)
         }
         return MovingWindow(now.task, now.screen, now.durationFactor, spring)
     }
 
     /**
-     * The window of [task] stops flying home, [shown] where it is, on [spring]:
-     * should its app open again soon, its launch starts there.
+     * The window of [task] stops flying home, on [window]'s springs: should
+     * its app open again soon, its launch starts where they have it then.
+     * [takeOver] is called as the launch takes them; it says whether they
+     * were still moving.
      */
-    fun returnFrom(task: Int, shown: RectSpring.Frame, spring: RectSpring) {
-        returning = Return(task, shown, spring, SystemClock.uptimeMillis())
+    fun returnFrom(task: Int, window: MovingWindow, takeOver: () -> Boolean = { false }) {
+        returning = Return(task, window, SystemClock.uptimeMillis(), takeOver)
     }
 
     /** Each frame of the launch: sets the window's place where Pixel Launcher no longer does, and lets the launch end once settled. */
@@ -234,7 +242,7 @@ internal class SpringLaunch(
             val time = SystemClock.uptimeMillis()
             val back = returnFor(now.task, time) ?: return null
             returning = null
-            windowFrom(now, back.shown, back, time).also { trace.write("  spring launch taken before its first frame, back from its flight home") }
+            windowFrom(now, back.window.spring.frame(), back, time).also { trace.write("  spring launch taken before its first frame, back from its flight home") }
         }
         launch = null
         main.post { if (now.set.isRunning) now.set.cancel() }

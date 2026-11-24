@@ -46,6 +46,7 @@ class AnimatunaModule : XposedModule() {
             else -> return
         }
         installed = true
+        trace.write("module ${BuildConfig.VERSION_NAME}, build ${BuildConfig.VERSION_CODE}")
         val lookup = HostLookup(param.classLoader)
         patches.forEach { (name, patch) ->
             runCatching { patch.install(lookup) }

@@ -40,6 +40,11 @@ android {
         versionName = appVersion
     }
 
+    // The trace names the module build it came from.
+    buildFeatures {
+        buildConfig = true
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true

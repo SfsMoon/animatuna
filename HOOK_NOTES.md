@@ -251,6 +251,27 @@ Only the window's place, each frame, comes from this module's springs.
   - Between a cut flight's `finishController(true)` and the next launch the
     window is gone for 85 to 110 ms. The flight is cut on the touch, the launch
     starts on the click, and the shell hides the app in between. Not solved.
+- vc23 on the device (24 Nov) named what cuts a flight home short: a tap
+  on an icon. Each cut logged two `RectFSpringAnim.end()` calls, from
+  `FloatingIconView.fastFinish` (through `LauncherSwipeHandlerV2$3`'s
+  lambda) and from `SwipeUpAnimationLogic$RunningWindowAnim$2.cancel`
+  (through `RectFSpringAnim.cancel`). The launcher finishes the gesture home
+  12 to 16 ms later, and the launch of the tapped app starts 85 to 125 ms
+  after that, with the window hidden in between. `taken before its first
+  frame` was seen once and worked.
+- vc24 fills that gap as ColorOS keeps the window moving through it:
+  - As each flight starts, a picture of the window is taken off the main
+    thread (`ActivityManagerWrapper.getInstance().takeTaskThumbnail(task)`,
+    `ThumbnailData.getThumbnail()`).
+  - When a flight is cut, the window's springs carry on from where it shows
+    (pulled frame included), and `GhostWindow` draws the picture there, in
+    the home screen's root view overlay (the floating icon's root), cropped
+    around its centre, rounded and faded as the window would be.
+  - A launch of the same task within 1 s takes the springs from where the
+    picture is, with its speed if it was still moving, and the picture is
+    removed a frame later. Otherwise it flies into its icon, or is removed
+    after 800 ms.
+  - The first trace line now names the module build.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.
