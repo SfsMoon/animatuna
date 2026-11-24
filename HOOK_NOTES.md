@@ -399,6 +399,20 @@ Only the window's place, each frame, comes from this module's springs.
   back`), and the app launched anew. vc34 leaves such a flight to the
   launcher's own frames (overwritten) while a window turns back, and takes
   a second tap on the same app during the turn back without launching it.
+- vc34 on the device (24 Nov): most turns back held, but two holes brought
+  the bug back:
+  - The dialer had opened a contact's screen in its task
+    (`START … QUICK_CONTACT … from com.google.android.dialer`), so the
+    task's top activity belonged to com.google.android.contacts and a tap on
+    the dialer's icon was refused as another app; the app launched anew
+    mid-gesture (`merge: transit_sleep`, `cancel: toHome=true`). vc35 matches
+    a tap against every app a task shows (top activity, first activity, the
+    intent's component).
+  - A flight home with no gesture (Back from an app, from the full screen)
+    was taken with the last gesture's app and surface, and a tap then turned
+    it back with no gesture to end (`shell not reached`, `the gesture never
+    ended`). vc35 forgets the gesture's app when its gesture ends or is
+    cancelled, so such a flight is left to the launcher.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

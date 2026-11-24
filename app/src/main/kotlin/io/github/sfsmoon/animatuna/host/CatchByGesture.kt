@@ -100,8 +100,12 @@ internal class CatchByGesture(
     @Volatile private var cutShort = false
     @Volatile private var shown: RectSpring.Frame? = null
 
-    /** The app window the gesture moves, whether caught or not: its task, its app, its surface, its full-size bounds. */
-    private class GestureApp(val task: Int, val packageName: String?, val surface: Any, val screen: Rect)
+    /**
+     * The app window the gesture moves, whether caught or not: its task, the
+     * apps it shows (its top activity's and the one that started it: an app
+     * may show another's screen in its task), its surface, its full-size bounds.
+     */
+    private class GestureApp(val task: Int, val packages: Set<String>, val surface: Any, val screen: Rect)
     @Volatile private var gestureApp: GestureApp? = null
 
     /** Whether the window, tapped on its flight home, is turning back to its app; the gesture it ends with, once it may. */
@@ -228,8 +232,7 @@ internal class CatchByGesture(
                 val leash = field(app, "leash")
                 val screen = field(app, "screenSpaceBounds") as? Rect
                 val info = field(app, "taskInfo") as? android.app.TaskInfo
-                val packageName = (info?.topActivity ?: info?.baseIntent?.component)?.packageName
-                if (task == null || leash == null || screen == null || screen.isEmpty) null else GestureApp(task, packageName, leash, Rect(screen))
+                if (task == null || leash == null || screen == null || screen.isEmpty) null else GestureApp(task, packagesOf(info), leash, Rect(screen))
             }
             val window = caught ?: return@after
             if (surface != null) {
@@ -258,7 +261,7 @@ internal class CatchByGesture(
             proceed()
         }
         hooks.after(lookup.method(LauncherSymbols.recentsCanceled)) { _, _ ->
-            val window = caught ?: return@after
+            val window = caught ?: return@after run { gestureApp = null }
             // Cancelled mid-flight, as a tap opening the app again does: its launch starts where the window is.
             if (flying) returnFromFlight(window)
             letGo("the gesture was cancelled${if (flying) ", ${(flown * PERCENT).toInt()}% of the way home" else ""}")
@@ -272,7 +275,7 @@ internal class CatchByGesture(
                 finishReverseIfReady()
                 null
             } else {
-                proceed().also { if (finishing.get() != true) ended(args) }
+                proceed().also { if (finishing.get() != true) ended(args) else gestureApp = null }
             }
         }
         val targetOf = lookup.method(LauncherSymbols.homeSpringTarget)
@@ -456,7 +459,7 @@ internal class CatchByGesture(
 
     /** The gesture has ended: back in the app the shell shows it whole again; home, the launcher has landed its flight. */
     private fun ended(args: List<Any?>) {
-        val window = caught ?: return
+        val window = caught ?: return run { gestureApp = null }
         if (args.firstOrNull() == false) {
             letGo("the gesture gave the window back to the app")
         } else if (flight != null) {
@@ -497,9 +500,9 @@ internal class CatchByGesture(
             return false
         }
         val tapped = intent?.component?.packageName ?: intent?.`package`
-        // Pixel Launcher's gesture target does not always carry its task's app; the system knows it by the task.
-        val flying = app.packageName ?: packageOfTask(window.task)
-        if (reversing && tapped != null && tapped == flying) {
+        // Pixel Launcher's gesture target does not always carry its task's apps; the system knows them by the task.
+        val flying = app.packages.ifEmpty { packagesOfTask(window.task) }
+        if (reversing && tapped != null && tapped in flying) {
             // Tapped again while it turns back: it is already on its way into its app.
             trace.write("  reverse: tapped again while turning back, taken")
             return true
@@ -508,7 +511,7 @@ internal class CatchByGesture(
             reversing -> "already turning back"
             cutShort -> "the launcher has already cut the flight"
             flight == null || surface == null -> "not flying home"
-            tapped == null || tapped != flying -> "another app ($tapped tapped, $flying flying)"
+            tapped == null || tapped !in flying -> "another app ($tapped tapped, ${flying.joinToString()} flying)"
             !tuning.read().springLaunch -> "spring launch off"
             else -> null
         }
@@ -596,12 +599,16 @@ internal class CatchByGesture(
         main.postDelayed({ traceTopTask("after the reverse") }, TOP_CHECK_MS)
     }
 
-    /** The app of [task], as the system lists its tasks; null where it is not running. */
-    private fun packageOfTask(task: Int): String? = runCatching {
-        val manager = launch.context?.getSystemService(android.app.ActivityManager::class.java) ?: return null
+    /** The apps of [task], as the system lists its tasks; none where it is not running. */
+    private fun packagesOfTask(task: Int): Set<String> = runCatching {
+        val manager = launch.context?.getSystemService(android.app.ActivityManager::class.java) ?: return emptySet()
         @Suppress("DEPRECATION")
-        manager.getRunningTasks(RUNNING_TASKS).firstOrNull { it.taskId == task }?.let { (it.topActivity ?: it.baseActivity)?.packageName }
-    }.getOrNull()
+        packagesOf(manager.getRunningTasks(RUNNING_TASKS).firstOrNull { it.taskId == task })
+    }.getOrDefault(emptySet())
+
+    /** The apps a task shows: its top activity's, its first activity's, and the one its intent named. */
+    private fun packagesOf(info: android.app.TaskInfo?): Set<String> =
+        listOfNotNull(info?.topActivity, info?.baseActivity, info?.baseIntent?.component).map { it.packageName }.toSet()
 
     /** Which task the system has on top now, and whether the launcher has the focus: what a reverse must leave as the app. */
     private fun traceTopTask(`when`: String) {
@@ -627,6 +634,7 @@ internal class CatchByGesture(
 
     private fun letGo(why: String) {
         caught = null
+        gestureApp = null
         held.clear()
         reversing = false
         reverseSettled = false
