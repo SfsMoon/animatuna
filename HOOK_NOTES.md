@@ -431,6 +431,26 @@ Only the window's place, each frame, comes from this module's springs.
   `AppLaunchAnimationRunner.onAnimationStart`). Stock Pixel cuts the
   flight at the touch, before the click. vc37 lets the held end go as soon
   as a tap is refused, before the launch proceeds.
+- vc37 on the device (25 Nov): the user still found swipes dead for about
+  a second after a turn back. Every turn back logged
+  `enableInputConsumer` (blocked) 20 to 230 ms after the tap, then a
+  flight home (`RectFSpringAnim.start`). In Launcher3,
+  `enableInputConsumer` is only called by a gesture handler of its own
+  (`startInterceptingTouchesForGesture`, at its controller and its first
+  move), and with the end target set to the app the next swipe is given
+  `OtherActivityInputConsumer` on the running recents animation
+  (`InputConsumerUtils.newBaseConsumer`): these were the user's own next
+  swipes, which the turn back overwrote and then ended in the app. vc33's
+  reading of that flight as the launcher's own was wrong. vc38 hands the
+  window to such a gesture (`Motion.CATCH_UP` from where it shows, the
+  launcher's input enabled again), its flight home on the springs as for a
+  launch caught by a gesture; a window caught up with its gesture keeps the
+  gesture's app, so that flight still flies on the springs.
+- Also in that trace: a launch cancelled 11 ms in, before its first frame,
+  by the next gesture's reset (`StateManager.cancelAnimation` from
+  `resetStateForAnimationCancel`): `SpringLaunch.isLaunching` was false
+  until the first frame, so the cancel went through and the app showed at
+  once. vc38 counts a launch from the moment it takes its window.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

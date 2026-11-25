@@ -153,13 +153,10 @@ internal class CatchByGesture(
         shellControllerOf = runCatching { lookup.field(LauncherSymbols.shellController) }.getOrNull()
         shellInputConsumer = runCatching { lookup.method(LauncherSymbols.shellInputConsumer) }.getOrNull()
         hooks.around(lookup.method(LauncherSymbols.enableInputConsumer)) { _, _, proceed ->
-            // A window turning back takes its own touches, as ColorOS's does: the launcher does not take them again.
-            if (reversing) {
-                trace.write("  reverse: the launcher would take the app's touches again; they stay the app's")
-                null
-            } else {
-                proceed()
-            }
+            // Only a gesture of its own takes the app's touches for the launcher: a new gesture has started on the window
+            // turning back, its end target no longer home, as Pixel Launcher picks the app's own input for it. It takes the window.
+            if (reversing) handToNewGesture()
+            proceed()
         }
         setEndTarget = runCatching { lookup.method(LauncherSymbols.setEndTarget) }.getOrNull()
         endTargetApp = runCatching { lookup.enumConstant(LauncherSymbols.END_TARGET, LauncherSymbols.END_TARGET_APP) }.getOrNull()
@@ -401,7 +398,8 @@ internal class CatchByGesture(
                 window.fit(drawn)
             } ?: stepped
             if (!flying && !reversing && window.spring.near(CAUGHT_UP_PX)) {
-                letGo("the window caught up with the gesture")
+                // The gesture goes on: its flight home, should it end there, still flies on the springs.
+                letGo("the window caught up with the gesture", keepGesture = true)
                 return@replaceArguments args
             }
             fit = now
@@ -576,6 +574,28 @@ internal class CatchByGesture(
         trace.write("  reverse: gesture input ${if (input != null) "destroyed" else "not found"}, shell ${if (controller != null) "told it ends in the app" else "not reached"}, end target ${if (ends != null && endTargetApp != null) "the app" else "left"}, touches ${if (touches != null) "the app's" else "left to the launcher"}")
     }
 
+    /**
+     * A new gesture started on a window turning back to its app, as a swipe
+     * right after a tap is: as on ColorOS, it takes the window where it shows,
+     * and the springs follow the finger from there, as for a launch caught by
+     * a gesture. The turn back ends; the new gesture ends the recents
+     * animation, home or in the app, as it would anyway.
+     */
+    private fun handToNewGesture() {
+        val window = caught ?: return
+        reversing = false
+        reverseSettled = false
+        toldHome = false
+        pendingFinish = null
+        flight = null
+        hostFlight = null
+        cutShort = false
+        caughtAt = SystemClock.uptimeMillis()
+        framesTraced = 0
+        window.use(Motion.CATCH_UP)
+        trace.write("  reverse: a new gesture takes the window turning back, ${(window.spring.frame().width * PERCENT / window.screen.width()).toInt()}% of its width")
+    }
+
     /** Each frame of a window turning back to its app: sets its place where Pixel Launcher no longer does, until it has settled. */
     private fun driveReverse(window: MovingWindow) {
         if (caught !== window || !reversing) return
@@ -651,9 +671,9 @@ internal class CatchByGesture(
         }
     }
 
-    private fun letGo(why: String) {
+    private fun letGo(why: String, keepGesture: Boolean = false) {
         caught = null
-        gestureApp = null
+        if (!keepGesture) gestureApp = null
         held.clear()
         reversing = false
         reverseSettled = false

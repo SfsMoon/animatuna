@@ -27,5 +27,8 @@
   for about a second, as the launcher still took its touches.
 - Fixed: tapping another app's icon while a window flies home opened that
   app with no animation.
+- A swipe on a window turning back to its app takes the window where it
+  is, as on ColorOS, instead of being ignored until the window is whole.
+- Fixed: an app opened and swiped away at once showed with no launch.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

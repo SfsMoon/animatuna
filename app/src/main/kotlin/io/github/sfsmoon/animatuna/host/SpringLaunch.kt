@@ -223,12 +223,12 @@ internal class SpringLaunch(
         private set
 
     /**
-     * Whether an app's launch is moving its window on springs now, one
-     * [handOver] would hand on: once its spring has started, or before its
-     * first frame when it starts where a flight home stopped.
+     * Whether an app's launch runs on springs now: from the moment it has
+     * taken its window, before its first frame too. A gesture started that
+     * early must not stop it, or the app shows at once, with no launch.
      */
     val isLaunching: Boolean
-        get() = launch?.let { it.set.isRunning && (it.window != null || returnFor(it.task, SystemClock.uptimeMillis()) != null) } == true
+        get() = launch?.set?.isRunning == true
 
     /**
      * Hands the window of the launch running on to whoever takes it from the
@@ -240,11 +240,18 @@ internal class SpringLaunch(
         // Taken before its first frame, a launch that starts where a flight home stopped is handed on from there.
         val window = now.window ?: run {
             val time = SystemClock.uptimeMillis()
-            val back = returnFor(now.task, time) ?: return null
-            returning = null
-            windowFrom(now, back.window.spring.frame(), back, time).also { trace.write("  spring launch taken before its first frame, back from its flight home") }
+            returnFor(now.task, time)?.let { back ->
+                returning = null
+                windowFrom(now, back.window.spring.frame(), back, time).also { trace.write("  spring launch taken before its first frame, back from its flight home") }
+            }
         }
         launch = null
+        if (window == null) {
+            // Taken before its first frame, from its icon: nothing on springs yet to hand on; the launch stops all the same.
+            main.post { if (now.set.isRunning) now.set.cancel() }
+            trace.write("  spring launch taken before its first frame, task ${now.task}: nothing to hand over")
+            return null
+        }
         main.post { if (now.set.isRunning) now.set.cancel() }
         trace.write("  spring launch handed over, task ${now.task}")
         return window
