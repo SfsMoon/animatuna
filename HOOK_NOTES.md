@@ -463,6 +463,15 @@ Only the window's place, each frame, comes from this module's springs.
   has `MotionPauseDetector.setDisallowPause` (set by the gesture input
   each move) keep pauses off for a gesture that took a window still
   opening or turning back, until that gesture ends.
+- vc39 on the device (25 Nov, video): Overview no longer stayed, but a
+  swipe up at the dialer still opening slid it right and opened the app
+  used before (Claude) in its place; earlier swipes showed that app's
+  card beside the window. Overview stood scrolled off the gesture's task,
+  so `isScrollingToNewTask` held and `calculateEndTargetForNonFling` gave
+  `NEW_TASK`; with pauses off, that branch is the one left (before vc39 a
+  pause gave `RECENTS` first). vc40 has `isScrollingToNewTask` answer false
+  for a gesture that took a window still opening or turning back, and
+  traces the end target such a gesture settles on.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.

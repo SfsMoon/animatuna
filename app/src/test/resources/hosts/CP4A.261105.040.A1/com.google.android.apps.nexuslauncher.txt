@@ -602,3 +602,6 @@ class com.android.systemui.shared.system.RecentsAnimationControllerCompat
   method setInputConsumerEnabled(boolean)
 class com.android.quickstep.util.MotionPauseDetector
   method setDisallowPause(boolean)
+class com.android.quickstep.AbsSwipeUpHandler
+  method isScrollingToNewTask(android.graphics.PointF, com.android.quickstep.util.ActiveGestureLog$CompoundString)
+  method calculateEndTarget(android.graphics.PointF, float, boolean, boolean, boolean, float)

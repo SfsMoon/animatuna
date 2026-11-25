@@ -160,6 +160,20 @@ internal class CatchByGesture(
             // as the window catches up with it, does not leave it in Overview.
             if (tookOpeningWindow && args.firstOrNull() == false) listOf(true) else args
         }
+        hooks.replaceResult(lookup.method(LauncherSymbols.scrollingToNewTask)) { _, _, result ->
+            // Overview stands scrolled to the task before while a window still opening or turning back is swiped:
+            // that swipe is at the window, not to that task, as on ColorOS.
+            if (tookOpeningWindow && result == true) {
+                trace.write("  catch: the launcher would end the swipe in the task beside it; it ends as the finger does")
+                false
+            } else {
+                result
+            }
+        }
+        hooks.replaceResult(lookup.method(LauncherSymbols.gestureEndTarget)) { _, _, result ->
+            if (tookOpeningWindow) trace.write("  catch: the gesture ends at $result")
+            result
+        }
         hooks.around(lookup.method(LauncherSymbols.enableInputConsumer)) { _, _, proceed ->
             // Only a gesture of its own takes the app's touches for the launcher: a new gesture has started on the window
             // turning back, its end target no longer home, as Pixel Launcher picks the app's own input for it. It takes the window.

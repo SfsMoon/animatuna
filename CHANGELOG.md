@@ -32,5 +32,7 @@
 - Fixed: an app opened and swiped away at once showed with no launch.
 - A swipe at an app still opening, or turning back to its app, no longer
   stops in Overview when the finger slows down.
+- Fixed: such a swipe could switch to the app used before, as if swiped
+  sideways.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

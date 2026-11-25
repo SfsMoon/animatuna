@@ -135,6 +135,14 @@ object LauncherSymbols {
     val disallowMotionPause = Member("com.android.quickstep.util.MotionPauseDetector", "setDisallowPause", "boolean")
 
     /**
+     * Whether the gesture's end goes to another task: Overview, scrolled off
+     * the gesture's task, ends it there (`NEW_TASK`) whatever the finger did.
+     * The end the gesture settles on is traced.
+     */
+    val scrollingToNewTask = Member("com.android.quickstep.AbsSwipeUpHandler", "isScrollingToNewTask", "android.graphics.PointF", GESTURE_LOG_TEXT)
+    val gestureEndTarget = Member("com.android.quickstep.AbsSwipeUpHandler", "calculateEndTarget", "android.graphics.PointF", "float", "boolean", "boolean", "boolean", "float")
+
+    /**
      * Where the gesture ends, as its handler and the launcher go by it after
      * the gesture: ColorOS sets it to the app (`LAST_TASK`) as a window turns
      * back, and Pixel Launcher, left at `HOME`, sends the launcher home again
@@ -169,7 +177,7 @@ object LauncherSymbols {
     val all: List<Member> = traced + listOf(
         appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
         surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely, endRunningWindowAnim, floatingIconTouchClose, inputConsumerMotion,
-        destroyInputConsumer, willFinishToHome, setEndTarget, enableInputConsumer, shellInputConsumer, disallowMotionPause,
+        destroyInputConsumer, willFinishToHome, setEndTarget, enableInputConsumer, shellInputConsumer, disallowMotionPause, scrollingToNewTask, gestureEndTarget,
     )
 }
 
