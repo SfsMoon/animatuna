@@ -30,5 +30,7 @@
 - A swipe on a window turning back to its app takes the window where it
   is, as on ColorOS, instead of being ignored until the window is whole.
 - Fixed: an app opened and swiped away at once showed with no launch.
+- A swipe at an app still opening, or turning back to its app, no longer
+  stops in Overview when the finger slows down.
 - Settings for the duration of opening from an icon and closing home with
   Back, and for the stiffness and damping of the gesture home spring.

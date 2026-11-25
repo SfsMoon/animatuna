@@ -128,6 +128,13 @@ object LauncherSymbols {
     val shellInputConsumer = Member("com.android.systemui.shared.system.RecentsAnimationControllerCompat", "setInputConsumerEnabled", "boolean")
 
     /**
+     * The gesture input saying, each move, whether a pause of the finger may
+     * count: a non-fling end with the finger paused goes to Overview
+     * (`AbsSwipeUpHandler.calculateEndTargetForNonFling`, `mIsMotionPaused`).
+     */
+    val disallowMotionPause = Member("com.android.quickstep.util.MotionPauseDetector", "setDisallowPause", "boolean")
+
+    /**
      * Where the gesture ends, as its handler and the launcher go by it after
      * the gesture: ColorOS sets it to the app (`LAST_TASK`) as a window turns
      * back, and Pixel Launcher, left at `HOME`, sends the launcher home again
@@ -162,7 +169,7 @@ object LauncherSymbols {
     val all: List<Member> = traced + listOf(
         appLaunchAnimationStart, homeOpenAnimationStart, setAnimation, recentsAnimationStart, floatingIconUpdate, windowCornerRadius, staleGestureReset, gestureBackgroundState, cancelStateAnimation, homeSpringStart, homeSpringTarget, homeSpringEnd,
         surfaceMatrix, surfaceCrop, surfaceCornerRadius, surfaceAlpha, startActivitySafely, endRunningWindowAnim, floatingIconTouchClose, inputConsumerMotion,
-        destroyInputConsumer, willFinishToHome, setEndTarget, enableInputConsumer, shellInputConsumer,
+        destroyInputConsumer, willFinishToHome, setEndTarget, enableInputConsumer, shellInputConsumer, disallowMotionPause,
     )
 }
 

@@ -108,6 +108,9 @@ internal class CatchByGesture(
     private class GestureApp(val task: Int, val packages: Set<String>, val surface: Any, val screen: Rect)
     @Volatile private var gestureApp: GestureApp? = null
 
+    /** Whether this gesture took a window still opening, or turning back to its app: it does not stop in Overview. */
+    @Volatile private var tookOpeningWindow = false
+
     /** Whether the window, tapped on its flight home, is turning back to its app; the gesture it ends with, once it may. */
     @Volatile private var reversing = false
     @Volatile private var pendingFinish: Pair<Any?, List<Any?>>? = null
@@ -152,6 +155,11 @@ internal class CatchByGesture(
         gestureStateOf = runCatching { lookup.field(LauncherSymbols.gestureStateOf) }.getOrNull()
         shellControllerOf = runCatching { lookup.field(LauncherSymbols.shellController) }.getOrNull()
         shellInputConsumer = runCatching { lookup.method(LauncherSymbols.shellInputConsumer) }.getOrNull()
+        hooks.replaceArguments(lookup.method(LauncherSymbols.disallowMotionPause)) { _, args ->
+            // A swipe at a window still opening is a swipe away from it, as on ColorOS: a pause of the finger,
+            // as the window catches up with it, does not leave it in Overview.
+            if (tookOpeningWindow && args.firstOrNull() == false) listOf(true) else args
+        }
         hooks.around(lookup.method(LauncherSymbols.enableInputConsumer)) { _, _, proceed ->
             // Only a gesture of its own takes the app's touches for the launcher: a new gesture has started on the window
             // turning back, its end target no longer home, as Pixel Launcher picks the app's own input for it. It takes the window.
@@ -244,7 +252,8 @@ internal class CatchByGesture(
                 val info = field(app, "taskInfo") as? android.app.TaskInfo
                 if (task == null || leash == null || screen == null || screen.isEmpty) null else GestureApp(task, packagesOf(info), leash, Rect(screen))
             }
-            val window = caught ?: return@after
+            // A gesture that takes no window still opening may stop in Overview as Pixel Launcher's would.
+            val window = caught ?: return@after run { tookOpeningWindow = false }
             if (surface != null) {
                 letGo("an earlier gesture had it")
                 return@after
@@ -271,7 +280,7 @@ internal class CatchByGesture(
             proceed()
         }
         hooks.after(lookup.method(LauncherSymbols.recentsCanceled)) { _, _ ->
-            val window = caught ?: return@after run { gestureApp = null }
+            val window = caught ?: return@after gestureOver()
             // Cancelled mid-flight, as a tap opening the app again does: its launch starts where the window is.
             if (flying) returnFromFlight(window)
             letGo("the gesture was cancelled${if (flying) ", ${(flown * PERCENT).toInt()}% of the way home" else ""}")
@@ -285,7 +294,7 @@ internal class CatchByGesture(
                 finishReverseIfReady()
                 null
             } else {
-                proceed().also { if (finishing.get() != true) ended(args) else gestureApp = null }
+                proceed().also { if (finishing.get() != true) ended(args) else gestureOver() }
             }
         }
         val targetOf = lookup.method(LauncherSymbols.homeSpringTarget)
@@ -456,6 +465,7 @@ internal class CatchByGesture(
     private val main = Handler(Looper.getMainLooper())
 
     private fun catch(window: MovingWindow) {
+        tookOpeningWindow = true
         flight = null
         caughtAt = SystemClock.uptimeMillis()
         caught = window
@@ -470,7 +480,7 @@ internal class CatchByGesture(
 
     /** The gesture has ended: back in the app the shell shows it whole again; home, the launcher has landed its flight. */
     private fun ended(args: List<Any?>) {
-        val window = caught ?: return run { gestureApp = null }
+        val window = caught ?: return gestureOver()
         if (args.firstOrNull() == false) {
             letGo("the gesture gave the window back to the app")
         } else if (flight != null) {
@@ -583,6 +593,7 @@ internal class CatchByGesture(
      */
     private fun handToNewGesture() {
         val window = caught ?: return
+        tookOpeningWindow = true
         reversing = false
         reverseSettled = false
         toldHome = false
@@ -671,9 +682,15 @@ internal class CatchByGesture(
         }
     }
 
+    /** The gesture is over: what was kept of it for its flight home goes. */
+    private fun gestureOver() {
+        gestureApp = null
+        tookOpeningWindow = false
+    }
+
     private fun letGo(why: String, keepGesture: Boolean = false) {
         caught = null
-        if (!keepGesture) gestureApp = null
+        if (!keepGesture) gestureOver()
         held.clear()
         reversing = false
         reverseSettled = false

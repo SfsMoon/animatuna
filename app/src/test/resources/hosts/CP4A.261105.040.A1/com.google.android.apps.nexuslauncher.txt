@@ -600,3 +600,5 @@ class com.android.quickstep.RecentsAnimationController
   method enableInputConsumer()
 class com.android.systemui.shared.system.RecentsAnimationControllerCompat
   method setInputConsumerEnabled(boolean)
+class com.android.quickstep.util.MotionPauseDetector
+  method setDisallowPause(boolean)

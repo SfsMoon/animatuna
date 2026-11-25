@@ -451,6 +451,18 @@ Only the window's place, each frame, comes from this module's springs.
   `resetStateForAnimationCancel`): `SpringLaunch.isLaunching` was false
   until the first frame, so the cancel went through and the app showed at
   once. vc38 counts a launch from the moment it takes its window.
+- vc38 on the device (25 Nov): the user found it "already great"; swipes
+  on a window turning back took it (`a new gesture takes the window
+  turning back`, five in a row). But Overview showed for a second after a
+  quick open: an app 300 ms into its launch was caught by a slow swipe,
+  the window caught up with it, and the gesture ended in Overview
+  (`finishController(true, RecentsView$$ExternalSyntheticLambda58, …)`,
+  shell `finishInner: toHome=true` 17:37:23.383, no flight home). In
+  Launcher3 a non-fling end goes to Overview only when the finger paused
+  (`calculateEndTargetForNonFling`: `mIsMotionPaused` → `RECENTS`). vc39
+  has `MotionPauseDetector.setDisallowPause` (set by the gesture input
+  each move) keep pauses off for a gesture that took a window still
+  opening or turning back, until that gesture ends.
 - Not a bug: the bare wallpaper behind a caught window during the gesture is
   stock. Pixel Launcher shows the "behind an app" state, workspace hidden,
   for any gesture from an app, until the window is let go home.
